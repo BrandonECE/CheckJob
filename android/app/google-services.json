@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "274458090331",
+    "project_id": "checkjob-ab19e",
+    "storage_bucket": "checkjob-ab19e.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:274458090331:android:8978473042b8ee6010987e",
+        "android_client_info": {
+          "package_name": "com.example.check_job"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyB9cReCKjdKgLta5Q9zym022pg55uh5M9Q"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
