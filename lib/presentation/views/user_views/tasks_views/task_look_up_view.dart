@@ -1,18 +1,18 @@
 import 'package:check_job/config/routes.dart';
+import 'package:check_job/presentation/controllers/task/user_task_controller.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:get/get_core/src/get_main.dart';
 
 class MyTaskLookUpView extends StatelessWidget {
-  const MyTaskLookUpView({super.key});
+  MyTaskLookUpView({super.key});
+
+  final TextEditingController searchController = TextEditingController();
 
   @override
   Widget build(BuildContext context) {
-    // tamaños proporcionales (ajústalos aquí si quieres escalar todo)
-    const double avatarInnerSize = 90.0; // tamaño interior del círculo blanco
-    const double ringPadding = 6.0; // padding del anillo exterior
-    final double dotSize =
-        avatarInnerSize * 0.21; // tamaño proporcional del punto verde
+    const double avatarInnerSize = 90.0;
+    const double ringPadding = 6.0;
+    final double dotSize = avatarInnerSize * 0.21;
 
     return _myBody(avatarInnerSize, ringPadding, dotSize);
   }
@@ -34,37 +34,22 @@ class MyTaskLookUpView extends StatelessWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.center,
                       children: [
-                        // Top-right badge
                         _buildAdminBadge(context),
-
                         const SizedBox(height: 81),
-
-                        // Título + logo
                         _buildTitleAndLogo(
                           context,
                           avatarInnerSize,
                           ringPadding,
                           dotSize,
                         ),
-
                         const SizedBox(height: 60),
-
-                        // Campo de texto
                         _buildSearchField(context),
-
                         const SizedBox(height: 23),
-
-                        // Botón Buscar
                         _buildSearchButton(context),
-
                         const SizedBox(height: 29),
-
-                        // Microcopy ejemplo
                         _buildExampleRow(context),
-
+                        _buildErrorText(),
                         const Spacer(),
-
-                        // Footer
                         _buildFooter(context),
                       ],
                     ),
@@ -78,10 +63,109 @@ class MyTaskLookUpView extends StatelessWidget {
     );
   }
 
-  // -----------------------
-  // Widgets como funciones
-  // -----------------------
+  Widget _buildSearchField(BuildContext context) {
+    return Material(
+      elevation: 3,
+      borderRadius: BorderRadius.circular(14),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(14),
+        ),
+        child: TextField(
+          controller: searchController,
+          decoration: const InputDecoration(
+            hintText: 'Ingrese ID de Trabajo',
+            prefixIcon: Icon(Icons.work_outline),
+            border: InputBorder.none,
+          ),
+        ),
+      ),
+    );
+  }
 
+  Widget _buildSearchButton(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final Color start = colorScheme.primary;
+    final Color end = colorScheme.primary.withOpacity(0.85);
+
+    return Obx(() {
+      final controller = Get.find<UserTaskController>();
+      return GestureDetector(
+        onTap: controller.isLoading.value
+            ? null
+            : () {
+                FocusScope.of(context).unfocus();
+                _performSearch(controller);
+              },
+        child: Container(
+          height: 64,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(999),
+            gradient: LinearGradient(colors: [start, end]),
+            boxShadow: [
+              BoxShadow(
+                color: start.withOpacity(0.22),
+                blurRadius: 18,
+                offset: const Offset(0, 10),
+              ),
+            ],
+          ),
+          child: Center(
+            child: controller.isLoading.value
+                ? const CircularProgressIndicator(color: Colors.white)
+                : Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: const [
+                      Icon(Icons.search, color: Colors.white),
+                      SizedBox(width: 10),
+                      Text(
+                        'Buscar',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w700,
+                          fontSize: 16.5,
+                        ),
+                      ),
+                    ],
+                  ),
+          ),
+        ),
+      );
+    });
+  }
+
+  Widget _buildErrorText() {
+    return Obx(() {
+      final controller = Get.find<UserTaskController>();
+      if (controller.searchError.value.isEmpty) return const SizedBox();
+
+      return Padding(
+        padding: const EdgeInsets.only(top: 16),
+        child: Text(
+          controller.searchError.value,
+          style: const TextStyle(color: Colors.red, fontSize: 14),
+          textAlign: TextAlign.center,
+        ),
+      );
+    });
+  }
+
+  void _performSearch(UserTaskController controller) async {
+    if (searchController.text.trim().isEmpty) {
+      controller.searchError.value = 'Por favor ingrese un ID de tarea';
+      return;
+    }
+
+    await controller.searchTaskById(searchController.text.trim());
+
+    if (controller.selectedTask.value != null) {
+      Get.toNamed(Routes.myUserTaskDetailView);
+    }
+  }
+
+  // ... resto de métodos (_buildAdminBadge, _buildTitleAndLogo, etc.) igual que antes ...
   Widget _buildAdminBadge(BuildContext context) {
     return GestureDetector(
       onTap: () => Get.toNamed(Routes.myAdminLoginView),
@@ -133,7 +217,7 @@ class MyTaskLookUpView extends StatelessWidget {
           style: TextStyle(
             fontSize: 28,
             fontWeight: FontWeight.w700,
-            color: colorScheme.primary, // usa primary del color scheme
+            color: colorScheme.primary,
           ),
           textAlign: TextAlign.center,
         ),
@@ -144,8 +228,6 @@ class MyTaskLookUpView extends StatelessWidget {
           textAlign: TextAlign.center,
         ),
         const SizedBox(height: 22),
-
-        // Logo con anillo y puntito verde
         Stack(
           alignment: Alignment.center,
           children: [
@@ -157,7 +239,7 @@ class MyTaskLookUpView extends StatelessWidget {
                 width: dotSize,
                 height: dotSize,
                 decoration: BoxDecoration(
-                  color: Colors.green.shade600, // parecido al 0xFF4CAF50
+                  color: Colors.green.shade600,
                   shape: BoxShape.circle,
                   border: Border.all(color: Colors.white, width: 2),
                   boxShadow: [
@@ -181,12 +263,9 @@ class MyTaskLookUpView extends StatelessWidget {
     double avatarInnerSize,
     double ringPadding,
   ) {
-    // aquí jugamos con opacidades para replicar el degradado original
     final colorScheme = Theme.of(context).colorScheme;
-
-    // colores del degradado basados en primary con distintas opacidades
-    final Color gradStart = colorScheme.primary.withOpacity(0.5); // más visible
-    final Color gradEnd = colorScheme.primary.withOpacity(0.05); // sutil
+    final Color gradStart = colorScheme.primary.withOpacity(0.5);
+    final Color gradEnd = colorScheme.primary.withOpacity(0.05);
 
     return Container(
       padding: EdgeInsets.all(ringPadding),
@@ -214,71 +293,6 @@ class MyTaskLookUpView extends StatelessWidget {
         ),
         child: Center(
           child: Icon(Icons.person, size: 40, color: colorScheme.primary),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildSearchField(BuildContext context) {
-    return Material(
-      elevation: 3,
-      borderRadius: BorderRadius.circular(14),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(14),
-        ),
-        child: const TextField(
-          decoration: InputDecoration(
-            hintText: 'Ingrese ID de Trabajo',
-            prefixIcon: Icon(Icons.work_outline),
-            border: InputBorder.none,
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildSearchButton(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-    // jugamos con opacidades y una variación para dar un efecto similar al gradiente original
-    final Color start = colorScheme.primary;
-    final Color end = colorScheme.primary.withOpacity(0.85);
-
-    return GestureDetector(
-      onTap: () {
-        Get.toNamed(Routes.myUserTaskDetailView);
-      },
-      child: Container(
-        height: 64,
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(999),
-          gradient: LinearGradient(colors: [start, end]),
-          boxShadow: [
-            BoxShadow(
-              color: start.withOpacity(0.22),
-              blurRadius: 18,
-              offset: const Offset(0, 10),
-            ),
-          ],
-        ),
-        child: Center(
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: const [
-              Icon(Icons.search, color: Colors.white),
-              SizedBox(width: 10),
-              Text(
-                'Buscar',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontWeight: FontWeight.w700,
-                  fontSize: 16.5,
-                ),
-              ),
-            ],
-          ),
         ),
       ),
     );

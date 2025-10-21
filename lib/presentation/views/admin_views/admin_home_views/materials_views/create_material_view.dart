@@ -1,9 +1,16 @@
+// lib/presentation/views/my_create_material_view.dart
+import 'package:check_job/presentation/controllers/material/material_controller.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:get/get_core/src/get_main.dart';
 
 class MyCreateMaterialView extends StatelessWidget {
-  const MyCreateMaterialView({super.key});
+  MyCreateMaterialView({super.key});
+
+  final MaterialController controller = Get.find<MaterialController>();
+  final TextEditingController nameController = TextEditingController();
+  final TextEditingController currentStockController = TextEditingController();
+  final TextEditingController minStockController = TextEditingController();
+  final RxString selectedUnit = 'Lts'.obs;
 
   @override
   Widget build(BuildContext context) {
@@ -106,6 +113,7 @@ class MyCreateMaterialView extends StatelessWidget {
     return Column(
       children: [
         _buildTextField(
+          controller: nameController,
           label: 'Nombre del Material',
           hintText: 'Ej: Aceite Motor, Filtro Aire, etc.',
           icon: Icons.inventory_2,
@@ -113,12 +121,12 @@ class MyCreateMaterialView extends StatelessWidget {
         const SizedBox(height: 16),
         _buildDropdownField(
           label: 'Tipo de Unidad',
-          value: 'Lts',
           items: ['Lts', 'Pzas', 'Kg', 'Mts', 'Cm', 'Unidades'],
           icon: Icons.straighten,
         ),
         const SizedBox(height: 16),
         _buildTextField(
+          controller: currentStockController,
           label: 'Cantidad Actual',
           hintText: '0',
           icon: Icons.numbers,
@@ -126,6 +134,7 @@ class MyCreateMaterialView extends StatelessWidget {
         ),
         const SizedBox(height: 16),
         _buildTextField(
+          controller: minStockController,
           label: 'Stock Mínimo',
           hintText: '0',
           icon: Icons.warning,
@@ -136,6 +145,7 @@ class MyCreateMaterialView extends StatelessWidget {
   }
 
   Widget _buildTextField({
+    required TextEditingController controller,
     required String label,
     required String hintText,
     required IconData icon,
@@ -167,6 +177,7 @@ class MyCreateMaterialView extends StatelessWidget {
             ],
           ),
           child: TextField(
+            controller: controller,
             keyboardType: keyboardType,
             decoration: InputDecoration(
               hintText: hintText,
@@ -182,7 +193,6 @@ class MyCreateMaterialView extends StatelessWidget {
 
   Widget _buildDropdownField({
     required String label,
-    required String value,
     required List<String> items,
     required IconData icon,
   }) {
@@ -211,9 +221,9 @@ class MyCreateMaterialView extends StatelessWidget {
               ),
             ],
           ),
-          child: DropdownButtonHideUnderline(
+          child: Obx(() => DropdownButtonHideUnderline(
             child: DropdownButton<String>(
-              value: value,
+              value: selectedUnit.value,
               isExpanded: true,
               items: items.map((String item) {
                 return DropdownMenuItem<String>(
@@ -231,9 +241,13 @@ class MyCreateMaterialView extends StatelessWidget {
                   ),
                 );
               }).toList(),
-              onChanged: (String? newValue) {},
+              onChanged: (String? newValue) {
+                if (newValue != null) {
+                  selectedUnit.value = newValue;
+                }
+              },
             ),
-          ),
+          )),
         ),
       ],
     );
@@ -242,36 +256,95 @@ class MyCreateMaterialView extends StatelessWidget {
   Widget _buildAddButton(BuildContext context) {
     final color = Theme.of(context).colorScheme.primary;
     
-    return SizedBox(
-      width: double.infinity,
-      child: ElevatedButton.icon(
-        onPressed: () {
-          Get.snackbar(
-            'Material Añadido',
-            'El material ha sido agregado exitosamente',
-            snackPosition: SnackPosition.BOTTOM,
-            backgroundColor: Colors.green,
-            colorText: Colors.white,
-          );
-          Get.back();
-        },
-        style: ElevatedButton.styleFrom(
-          backgroundColor: color,
-          padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
+    return Obx(() {
+      if (controller.isLoading.value) {
+        return SizedBox(
+          width: double.infinity,
+          child: ElevatedButton(
+            onPressed: () {},
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.grey.shade300,
+              padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
+            child:  SizedBox(
+              width: 30,
+              height: 30,
+              child: CircularProgressIndicator()),
+          ),
+        );
+      }
+
+      return SizedBox(
+        width: double.infinity,
+        child: ElevatedButton.icon(
+          onPressed: _createMaterial,
+          style: ElevatedButton.styleFrom(
+            backgroundColor: color,
+            padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+          ),
+          icon: const Icon(Icons.add, color: Colors.white, size: 20),
+          label: const Text(
+            'Añadir Material',
+            style: TextStyle(
+              color: Colors.white,
+              fontWeight: FontWeight.w700,
+              fontSize: 16,
+            ),
           ),
         ),
-        icon: const Icon(Icons.add, color: Colors.white, size: 20),
-        label: const Text(
-          'Añadir Material',
-          style: TextStyle(
-            color: Colors.white,
-            fontWeight: FontWeight.w700,
-            fontSize: 16,
-          ),
-        ),
-      ),
+      );
+    });
+  }
+
+  void _createMaterial() {
+    final name = nameController.text.trim();
+    final currentStock = int.tryParse(currentStockController.text) ?? 0;
+    final minStock = int.tryParse(minStockController.text) ?? 0;
+
+    if (name.isEmpty) {
+      Get.snackbar(
+        'Error',
+        'El nombre del material es requerido',
+        snackPosition: SnackPosition.BOTTOM,
+        backgroundColor: Colors.red,
+        colorText: Colors.white,
+      );
+      return;
+    }
+
+    if (currentStock < 0) {
+      Get.snackbar(
+        'Error',
+        'La cantidad actual no puede ser negativa',
+        snackPosition: SnackPosition.BOTTOM,
+        backgroundColor: Colors.red,
+        colorText: Colors.white,
+      );
+      return;
+    }
+
+    if (minStock < 0) {
+      Get.snackbar(
+        'Error',
+        'El stock mínimo no puede ser negativo',
+        snackPosition: SnackPosition.BOTTOM,
+        backgroundColor: Colors.red,
+        colorText: Colors.white,
+      );
+      return;
+    }
+
+    controller.createMaterial(
+      name: name,
+      currentStock: currentStock,
+      minStock: minStock,
+      unit: selectedUnit.value,
     );
   }
 

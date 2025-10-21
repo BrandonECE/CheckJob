@@ -1,49 +1,14 @@
+// lib/presentation/views/my_audit_logs_view.dart
+import 'package:check_job/domain/entities/audit_log_entity.dart';
+import 'package:check_job/presentation/controllers/audit_log/audit_log_controller.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:get/get_core/src/get_main.dart';
-
-import '../../../../../utils/utils.dart';
+import 'package:check_job/utils/utils.dart';
 
 class MyAuditLogsView extends StatelessWidget {
- MyAuditLogsView({super.key});
+  MyAuditLogsView({super.key});
 
-  final List<Map<String, dynamic>> auditLogs =  [
-    {
-      'auditLogID': 'log_001',
-      'action': 'database_initialized',
-      'actorID': 'admin_001',
-      'target': 'complete_database',
-      'timestamp': DateTime(2025, 9, 20, 1, 50, 53),
-    },
-    {
-      'auditLogID': 'log_002',
-      'action': 'user_created',
-      'actorID': 'admin_001',
-      'target': 'user_123',
-      'timestamp': DateTime(2025, 9, 19, 14, 30, 22),
-    },
-    {
-      'auditLogID': 'log_003',
-      'action': 'task_assigned',
-      'actorID': 'manager_002',
-      'target': 'task_456',
-      'timestamp': DateTime(2025, 9, 18, 9, 15, 17),
-    },
-    {
-      'auditLogID': 'log_004',
-      'action': 'permissions_updated',
-      'actorID': 'admin_001',
-      'target': 'user_789',
-      'timestamp': DateTime(2025, 9, 17, 16, 45, 38),
-    },
-    {
-      'auditLogID': 'log_005',
-      'action': 'backup_completed',
-      'actorID': 'system',
-      'target': 'database_backup',
-      'timestamp': DateTime(2025, 9, 16, 23, 10, 5),
-    },
-  ];
+  final AuditLogController controller = Get.find<AuditLogController>();
 
   @override
   Widget build(BuildContext context) {
@@ -126,7 +91,7 @@ class MyAuditLogsView extends StatelessWidget {
           const SizedBox(width: 10),
           Expanded(
             child: TextField(
-              onChanged: (_) {},
+              onChanged: (value) => controller.setSearchQuery(value),
               decoration: InputDecoration(
                 hintText: 'Buscar registros...',
                 hintStyle: TextStyle(color: Colors.grey.shade500),
@@ -154,20 +119,39 @@ class MyAuditLogsView extends StatelessWidget {
   }
 
   Widget _buildLogsList(BuildContext context) {
-    return Expanded(
-      child: ListView.builder(
-        itemCount: auditLogs.length,
-        itemBuilder: (context, index) {
-          return _logCard(context, auditLogs[index]);
-        },
-      ),
-    );
+    return Obx(() {
+      if (controller.isLoading.value) {
+        return const Expanded(
+          child: Center(
+            child: CircularProgressIndicator(),
+          ),
+        );
+      }
+
+      final logs = controller.filteredLogs;
+
+      if (logs.isEmpty) {
+        return const Expanded(
+          child: Center(
+            child: Text('No hay registros de auditoría'),
+          ),
+        );
+      }
+
+      return Expanded(
+        child: ListView.builder(
+          itemCount: logs.length,
+          itemBuilder: (context, index) {
+            return _logCard(context, logs[index]);
+          },
+        ),
+      );
+    });
   }
 
-  Widget _logCard(BuildContext context, Map<String, dynamic> log) {
-    final color = Theme.of(context).colorScheme.primary;
-    final timestamp = log['timestamp'] as DateTime;
-    final actionColor = _getActionColor(log['action']);
+  Widget _logCard(BuildContext context, AuditLogEntity log) {
+    final actionColor = _getActionColor(log.action);
+    final timestamp = log.timestamp;
 
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
@@ -210,7 +194,7 @@ class MyAuditLogsView extends StatelessWidget {
               radius: 22,
               backgroundColor: Colors.white,
               child: Icon(
-                _getActionIcon(log['action']),
+                _getActionIcon(log.action),
                 size: 24,
                 color: actionColor,
               ),
@@ -224,7 +208,7 @@ class MyAuditLogsView extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  _formatAction(log['action']),
+                  _formatAction(log.action),
                   style: TextStyle(
                     fontWeight: FontWeight.w600,
                     fontSize: 15,
@@ -233,15 +217,15 @@ class MyAuditLogsView extends StatelessWidget {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  'Actor: ${log['actorID']}',
+                  'Actor: ${log.actorID}',
                   style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
                 ),
                 Text(
-                  'Objetivo: ${log['target']}',
+                  log.target,
                   style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
                 ),
                 Text(
-                  'ID: ${log['auditLogID']}',
+                  'ID: ${log.auditLogID}',
                   style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
                 ),
               ],
@@ -275,56 +259,104 @@ class MyAuditLogsView extends StatelessWidget {
     );
   }
 
-  IconData _getActionIcon(String action) {
-    switch (action) {
-      case 'database_initialized':
-        return Icons.storage;
-      case 'user_created':
-        return Icons.person_add;
-      case 'task_assigned':
-        return Icons.assignment;
-      case 'permissions_updated':
-        return Icons.security;
-      case 'backup_completed':
-        return Icons.backup;
-      default:
-        return Icons.history;
-    }
+IconData _getActionIcon(String action) {
+  switch (action) {
+    case 'task_created':
+      return Icons.assignment_add;
+    case 'task_updated':
+      return Icons.assignment;
+    case 'task_deleted':
+      return Icons.assignment_late_rounded;
+    case 'employee_created':
+      return Icons.person_add;
+    case 'employee_deleted':
+      return Icons.person_remove;
+    case 'client_created':
+      return Icons.business_center;
+    case 'client_deleted':
+      return Icons.business_center_rounded;
+    case 'material_created':
+      return Icons.inventory_2;
+    case 'material_updated':
+      return Icons.inventory;
+    case 'material_deleted':
+      return Icons.inventory_2_outlined;
+    case 'invoice_managed':
+      return Icons.receipt;
+    case 'report_generated':
+      return Icons.assessment;
+    case 'report_deleted':
+      return Icons.assessment_outlined; // Icono para reporte eliminado
+    default:
+      return Icons.help_outline;
   }
+}
 
-  Color _getActionColor(String action) {
-    switch (action) {
-      case 'database_initialized':
-        return Colors.green;
-      case 'user_created':
-        return Colors.blue;
-      case 'task_assigned':
-        return Colors.orange;
-      case 'permissions_updated':
-        return Colors.purple;
-      case 'backup_completed':
-        return Colors.teal;
-      default:
-        return Colors.grey;
-    }
+Color _getActionColor(String action) {
+  switch (action) {
+    case 'task_created':
+      return Colors.green;
+    case 'task_updated':
+      return Colors.blue;
+    case 'task_deleted':
+      return Colors.red;
+    case 'employee_created':
+      return Colors.teal;
+    case 'employee_deleted':
+      return Colors.orange;
+    case 'client_created':
+      return Colors.purple;
+    case 'client_deleted':
+      return Colors.deepOrange;
+    case 'material_created':
+      return Colors.indigo;
+    case 'material_updated':
+      return Colors.cyan;
+    case 'material_deleted':
+      return Colors.brown;
+    case 'invoice_managed':
+      return Colors.amber;
+    case 'report_generated':
+      return Colors.lightGreen;
+    case 'report_deleted':
+      return Colors.red.shade700; // Color rojo más oscuro para eliminación
+    default:
+      return Colors.grey;
   }
+}
 
-  String _formatAction(String action) {
-    switch (action) {
-      case 'database_initialized':
-        return 'BD Inicializada';
-      case 'user_created':
-        return 'Usuario Creado';
-      case 'task_assigned':
-        return 'Tarea Asignada';
-      case 'permissions_updated':
-        return 'Permisos Actualizados';
-      case 'backup_completed':
-        return 'Respaldo Completado';
-      default:
-        return action;
-    }
+String _formatAction(String action) {
+  switch (action) {
+    case 'task_created':
+      return 'Tarea Creada';
+    case 'task_updated':
+      return 'Tarea Actualizada';
+    case 'task_deleted':
+      return 'Tarea Eliminada';
+    case 'employee_created':
+      return 'Empleado Creado';
+    case 'employee_deleted':
+      return 'Empleado Eliminado';
+    case 'client_created':
+      return 'Cliente Creado';
+    case 'client_deleted':
+      return 'Cliente Eliminado';
+    case 'material_created':
+      return 'Material Creado';
+    case 'material_updated':
+      return 'Material Actualizado';
+    case 'material_deleted':
+      return 'Material Eliminado';
+    case 'invoice_managed':
+      return 'Factura Gestionada';
+    case 'report_generated':
+      return 'Reporte Generado';
+    case 'report_deleted':
+      return 'Reporte Eliminado'; // Texto para reporte eliminado
+    default:
+      return 'Acción Desconocida';
   }
+}
 
   static Color _blendWithWhite(BuildContext context, double amount) {
     final primary = Theme.of(context).colorScheme.primary;

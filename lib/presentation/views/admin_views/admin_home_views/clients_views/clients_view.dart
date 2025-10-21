@@ -1,31 +1,13 @@
 import 'package:check_job/config/routes.dart';
+import 'package:check_job/domain/entities/enities.dart';
+import 'package:check_job/presentation/controllers/client/client_controller.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:get/get_core/src/get_main.dart';
 
 class MyClientsView extends StatelessWidget {
-  const MyClientsView({super.key});
+  MyClientsView({super.key});
 
-  final List<Map<String, dynamic>> clients = const [
-    {
-      'name': 'Empresa ABC',
-      'email': 'contacto@abc.com',
-      'phone': '+1234567890',
-      'status': 'Activo',
-    },
-    {
-      'name': 'Compañía XYZ',
-      'email': 'info@xyz.com',
-      'phone': '+0987654321',
-      'status': 'Activo',
-    },
-    {
-      'name': 'Negocio 123',
-      'email': 'ventas@negocio123.com',
-      'phone': '+1122334455',
-      'status': 'Inactivo',
-    },
-  ];
+  final ClientController controller = Get.find<ClientController>();
 
   @override
   Widget build(BuildContext context) {
@@ -50,6 +32,7 @@ class MyClientsView extends StatelessWidget {
   }
 
   Widget _buildHeader(BuildContext context) {
+    final color = Theme.of(context).colorScheme.primary;
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
@@ -68,11 +51,7 @@ class MyClientsView extends StatelessWidget {
                 ),
               ],
             ),
-            child: Icon(
-              Icons.arrow_back_ios_new,
-              size: 18,
-              color: Theme.of(context).colorScheme.primary,
-            ),
+            child: Icon(Icons.arrow_back_ios_new, size: 18, color: color),
           ),
         ),
         Text(
@@ -80,7 +59,7 @@ class MyClientsView extends StatelessWidget {
           style: TextStyle(
             fontSize: 24,
             fontWeight: FontWeight.w700,
-            color: Theme.of(context).colorScheme.primary,
+            color: color,
           ),
         ),
         IconButton(
@@ -91,14 +70,19 @@ class MyClientsView extends StatelessWidget {
     );
   }
 
-  // Nuevo: buscador visual (solo diseño)
   Widget _buildSearchField(BuildContext context) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(12),
-        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 8, offset: const Offset(0, 4))],
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.03),
+            blurRadius: 8,
+            offset: const Offset(0, 4),
+          ),
+        ],
       ),
       child: Row(
         children: [
@@ -106,7 +90,7 @@ class MyClientsView extends StatelessWidget {
           const SizedBox(width: 10),
           Expanded(
             child: TextField(
-              onChanged: (_) {}, // diseño-only
+              onChanged: (_) {},
               decoration: InputDecoration(
                 hintText: 'Buscar clientes...',
                 hintStyle: TextStyle(color: Colors.grey.shade500),
@@ -117,7 +101,6 @@ class MyClientsView extends StatelessWidget {
             ),
           ),
           const SizedBox(width: 8),
-          // botón visual para filtro/clear (no funcional)
           GestureDetector(
             onTap: () {},
             child: Container(
@@ -135,22 +118,46 @@ class MyClientsView extends StatelessWidget {
   }
 
   Widget _buildClientsList(BuildContext context) {
-    return Expanded(
-      child: ListView.builder(
-        itemCount: clients.length,
-        itemBuilder: (context, index) {
-          return GestureDetector(
-            onTap: () {
-              Get.toNamed(Routes.myClientPortalView);
-            },
-            child: _clientCard(context, clients[index]),
-          );
-        },
-      ),
-    );
+    return Obx(() {
+      if (controller.isLoading.value) {
+        return const Expanded(
+          child: Center(child: CircularProgressIndicator()),
+        );
+      }
+
+      final clients = controller.clients;
+
+      if (clients.isEmpty) {
+        return const Expanded(
+          child: Center(
+            child: Text(
+              'No hay clientes registrados',
+              style: TextStyle(color: Colors.grey, fontSize: 16),
+            ),
+          ),
+        );
+      }
+
+      return Expanded(
+        child: ListView.builder(
+          itemCount: clients.length,
+          itemBuilder: (context, index) {
+            return GestureDetector(
+              onTap: () async {
+                await controller.selectClient(clients[index].clientID);
+                Get.toNamed(Routes.myClientPortalView);
+              },
+              child: _clientCard(context, clients[index]),
+            );
+          },
+        ),
+      );
+    });
   }
 
-  Widget _clientCard(BuildContext context, Map<String, dynamic> client) {
+  Widget _clientCard(BuildContext context, ClientEntity client) {
+    final isActive = client.isActive ?? false;
+    
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(16),
@@ -168,12 +175,13 @@ class MyClientsView extends StatelessWidget {
       child: Row(
         children: [
           CircleAvatar(
-            backgroundColor: Theme.of(
-              context,
-            ).colorScheme.primary.withOpacity(0.1),
+            backgroundColor: Theme.of(context).colorScheme.primary.withOpacity(0.1),
             child: Text(
-              client['name'][0],
-              style: TextStyle(color: Theme.of(context).colorScheme.primary),
+              client.name.isNotEmpty ? client.name[0].toUpperCase() : 'C',
+              style: TextStyle(
+                color: Theme.of(context).colorScheme.primary,
+                fontWeight: FontWeight.w600,
+              ),
             ),
           ),
           const SizedBox(width: 16),
@@ -182,35 +190,47 @@ class MyClientsView extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  client['name'],
-                  style: TextStyle(fontWeight: FontWeight.w600),
+                  client.name,
+                  style: TextStyle(
+                    fontWeight: FontWeight.w600,
+                    fontSize: 16,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                SizedBox(
+                  width: MediaQuery.of(context).size.width * 0.4,
+                  child: Text(
+                    client.email,
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Colors.grey.shade600
+                      ,overflow: TextOverflow.ellipsis
+                    ),
+                  ),
                 ),
                 Text(
-                  client['email'],
-                  style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                  client.phone,
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Colors.grey.shade600,
+                  ),
                 ),
-                Text(
-                  client['phone'],
-                  style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
-                ),
+             
               ],
             ),
           ),
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
             decoration: BoxDecoration(
-              color: client['status'] == 'Activo'
-                  ? Colors.green.shade100
-                  : Colors.grey.shade200,
+              color: isActive ? Colors.green.shade100 : Colors.grey.shade200,
               borderRadius: BorderRadius.circular(20),
             ),
             child: Text(
-              client['status'],
+              isActive ? 'Activo' : 'Inactivo',
               style: TextStyle(
-                color: client['status'] == 'Activo'
-                    ? Colors.green
-                    : Colors.grey,
+                color: isActive ? Colors.green : Colors.grey,
                 fontSize: 12,
+                fontWeight: FontWeight.w600,
               ),
             ),
           ),

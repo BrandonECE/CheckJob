@@ -1,9 +1,14 @@
+import 'package:check_job/presentation/controllers/client/client_controller.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:get/get_core/src/get_main.dart';
 
 class MyCreateClientView extends StatelessWidget {
-  const MyCreateClientView({super.key});
+  MyCreateClientView({super.key});
+
+  final ClientController controller = Get.find<ClientController>();
+  final TextEditingController nameController = TextEditingController();
+  final TextEditingController emailController = TextEditingController();
+  final TextEditingController phoneController = TextEditingController();
 
   @override
   Widget build(BuildContext context) {
@@ -81,7 +86,6 @@ class MyCreateClientView extends StatelessWidget {
     
     return Column(
       children: [
-        // Avatar simple (igual que en la lista de clientes)
         CircleAvatar(
           radius: 40,
           backgroundColor: color.withOpacity(0.1),
@@ -110,12 +114,14 @@ class MyCreateClientView extends StatelessWidget {
     return Column(
       children: [
         _buildTextField(
+          controller: nameController,
           label: 'Nombre del Cliente',
           hintText: 'Ingresa el nombre completo',
           icon: Icons.person,
         ),
         const SizedBox(height: 16),
         _buildTextField(
+          controller: emailController,
           label: 'Email',
           hintText: 'cliente@empresa.com',
           icon: Icons.email,
@@ -123,6 +129,7 @@ class MyCreateClientView extends StatelessWidget {
         ),
         const SizedBox(height: 16),
         _buildTextField(
+          controller: phoneController,
           label: 'Teléfono',
           hintText: '+1234567890',
           icon: Icons.phone,
@@ -133,6 +140,7 @@ class MyCreateClientView extends StatelessWidget {
   }
 
   Widget _buildTextField({
+    required TextEditingController controller,
     required String label,
     required String hintText,
     required IconData icon,
@@ -164,6 +172,7 @@ class MyCreateClientView extends StatelessWidget {
             ],
           ),
           child: TextField(
+            controller: controller,
             keyboardType: keyboardType,
             decoration: InputDecoration(
               hintText: hintText,
@@ -180,36 +189,96 @@ class MyCreateClientView extends StatelessWidget {
   Widget _buildCreateButton(BuildContext context) {
     final color = Theme.of(context).colorScheme.primary;
     
-    return SizedBox(
-      width: double.infinity,
-      child: ElevatedButton.icon(
-        onPressed: () {
-          Get.snackbar(
-            'Cliente Creado',
-            'El cliente ha sido creado exitosamente',
-            snackPosition: SnackPosition.BOTTOM,
-            backgroundColor: Colors.green,
-            colorText: Colors.white,
-          );
-          Get.back();
-        },
-        style: ElevatedButton.styleFrom(
-          backgroundColor: color,
-          padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
+    return Obx(() {
+      if (controller.isLoading.value) {
+        return SizedBox(
+          width: double.infinity,
+          child: ElevatedButton(
+            onPressed: () {},
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.grey.shade300,
+              padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
+            child: SizedBox(
+              width: 30,
+              height: 30,
+              child: CircularProgressIndicator()),
+          ),
+        );
+      }
+
+      
+
+      return SizedBox(
+        width: double.infinity,
+        child: ElevatedButton.icon(
+          onPressed: _createClient,
+          style: ElevatedButton.styleFrom(
+            backgroundColor: color,
+            padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+          ),
+          icon: const Icon(Icons.person_add, color: Colors.white, size: 20),
+          label: const Text(
+            'Crear Cliente',
+            style: TextStyle(
+              color: Colors.white,
+              fontWeight: FontWeight.w700,
+              fontSize: 16,
+            ),
           ),
         ),
-        icon: const Icon(Icons.person_add, color: Colors.white, size: 20),
-        label: const Text(
-          'Crear Cliente',
-          style: TextStyle(
-            color: Colors.white,
-            fontWeight: FontWeight.w700,
-            fontSize: 16,
-          ),
-        ),
-      ),
+      );
+    });
+  }
+
+  void _createClient() {
+    final name = nameController.text.trim();
+    final email = emailController.text.trim();
+    final phone = phoneController.text.trim();
+
+    if (name.isEmpty) {
+      Get.snackbar(
+        'Error',
+        'El nombre del cliente es requerido',
+        snackPosition: SnackPosition.BOTTOM,
+        backgroundColor: Colors.red,
+        colorText: Colors.white,
+      );
+      return;
+    }
+
+    if (email.isEmpty || !email.isEmail) {
+      Get.snackbar(
+        'Error',
+        'Por favor ingresa un email válido',
+        snackPosition: SnackPosition.BOTTOM,
+        backgroundColor: Colors.red,
+        colorText: Colors.white,
+      );
+      return;
+    }
+
+    if (phone.isEmpty) {
+      Get.snackbar(
+        'Error',
+        'El teléfono es requerido',
+        snackPosition: SnackPosition.BOTTOM,
+        backgroundColor: Colors.red,
+        colorText: Colors.white,
+      );
+      return;
+    }
+
+    controller.createClient(
+      name: name,
+      email: email,
+      phone: phone,
     );
   }
 

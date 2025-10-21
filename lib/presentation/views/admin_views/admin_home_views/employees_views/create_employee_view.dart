@@ -1,9 +1,26 @@
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:get/get_core/src/get_main.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:check_job/presentation/controllers/employee/employee_controller.dart';
 
 class MyCreateEmployeeView extends StatelessWidget {
-  const MyCreateEmployeeView({super.key});
+  MyCreateEmployeeView({super.key});
+
+  final EmployeeController controller = Get.find<EmployeeController>();
+  final TextEditingController nameController = TextEditingController();
+  final TextEditingController emailController = TextEditingController();
+  final TextEditingController phoneController = TextEditingController();
+  final Rx<Uint8List?> photoData = Rx<Uint8List?>(null);
+
+  Future<void> _pickImage() async {
+    final ImagePicker picker = ImagePicker();
+    final XFile? image = await picker.pickImage(source: ImageSource.gallery);
+    if (image != null) {
+      final bytes = await image.readAsBytes();
+      photoData.value = bytes;
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -78,71 +95,62 @@ class MyCreateEmployeeView extends StatelessWidget {
 
   Widget _buildAvatarSection(BuildContext context) {
     final color = Theme.of(context).colorScheme.primary;
-    
+
     return Column(
       children: [
         GestureDetector(
-          onTap: () {
-            Get.snackbar(
-              'Seleccionar foto',
-              'Funcionalidad para elegir foto',
-              snackPosition: SnackPosition.BOTTOM,
-            );
-          },
-          child: Container(
-            padding: const EdgeInsets.all(6),
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              gradient: LinearGradient(
-                colors: [
-                  color.withOpacity(0.5),
-                  color.withOpacity(0.05),
+          onTap: _pickImage,
+          child: Obx(() {
+            return Container(
+              padding: const EdgeInsets.all(6),
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                gradient: LinearGradient(
+                  colors: [color.withOpacity(0.5), color.withOpacity(0.05)],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.04),
+                    blurRadius: 6,
+                    offset: const Offset(0, 3),
+                  ),
                 ],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
               ),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.04),
-                  blurRadius: 6,
-                  offset: const Offset(0, 3),
-                ),
-              ],
-            ),
-            child: Stack(
-              children: [
-                const CircleAvatar(
-                  radius: 40,
-                  backgroundColor: Colors.white,
-                  child: Icon(Icons.person, size: 40, color: Colors.teal),
-                ),
-                Positioned(
-                  bottom: 0,
-                  right: 0,
-                  child: Container(
-                    padding: const EdgeInsets.all(6),
-                    decoration: const BoxDecoration(
-                      color: Colors.white,
-                      shape: BoxShape.circle,
-                    ),
-                    child: Icon(
-                      Icons.camera_alt,
-                      size: 16,
-                      color: color,
+              child: Stack(
+                children: [
+                  CircleAvatar(
+                    radius: 40,
+                    backgroundColor: Colors.white,
+                    backgroundImage: photoData.value != null
+                        ? MemoryImage(photoData.value!)
+                        : null,
+                    child: photoData.value == null
+                        ? Icon(Icons.person, size: 40, color: Colors.teal)
+                        : null,
+                  ),
+                  Positioned(
+                    bottom: 0,
+                    right: 0,
+                    child: Container(
+                      padding: const EdgeInsets.all(6),
+                      decoration: const BoxDecoration(
+                        color: Colors.white,
+                        shape: BoxShape.circle,
+                      ),
+                      child: Icon(Icons.camera_alt, size: 16, color: color),
                     ),
                   ),
-                ),
-              ],
-            ),
-          ),
+                ],
+              ),
+            );
+          }),
         ),
         const SizedBox(height: 12),
         Text(
           'Toca para agregar foto',
-          style: TextStyle(
-            fontSize: 12,
-            color: Colors.grey.shade600,
-          ),
+          style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
         ),
       ],
     );
@@ -152,12 +160,14 @@ class MyCreateEmployeeView extends StatelessWidget {
     return Column(
       children: [
         _buildTextField(
+          controller: nameController,
           label: 'Nombre del Empleado',
           hintText: 'Ingresa el nombre completo',
           icon: Icons.person,
         ),
         const SizedBox(height: 16),
         _buildTextField(
+          controller: emailController,
           label: 'Email',
           hintText: 'empleado@empresa.com',
           icon: Icons.email,
@@ -165,6 +175,7 @@ class MyCreateEmployeeView extends StatelessWidget {
         ),
         const SizedBox(height: 16),
         _buildTextField(
+          controller: phoneController,
           label: 'Teléfono',
           hintText: '+1234567890',
           icon: Icons.phone,
@@ -175,6 +186,7 @@ class MyCreateEmployeeView extends StatelessWidget {
   }
 
   Widget _buildTextField({
+    required TextEditingController controller,
     required String label,
     required String hintText,
     required IconData icon,
@@ -206,10 +218,11 @@ class MyCreateEmployeeView extends StatelessWidget {
             ],
           ),
           child: TextField(
+            controller: controller,
             keyboardType: keyboardType,
             decoration: InputDecoration(
               hintText: hintText,
-              hintStyle: TextStyle(color: Colors.grey.shade500), // Más claro
+              hintStyle: TextStyle(color: Colors.grey.shade500),
               border: InputBorder.none,
               icon: Icon(icon, size: 18, color: Colors.grey.shade600),
             ),
@@ -221,37 +234,97 @@ class MyCreateEmployeeView extends StatelessWidget {
 
   Widget _buildCreateButton(BuildContext context) {
     final color = Theme.of(context).colorScheme.primary;
-    
-    return SizedBox(
-      width: double.infinity,
-      child: ElevatedButton.icon(
-        onPressed: () {
-          Get.snackbar(
-            'Empleado Creado',
-            'El empleado ha sido creado exitosamente',
-            snackPosition: SnackPosition.BOTTOM,
-            backgroundColor: Colors.green,
-            colorText: Colors.white,
-          );
-          Get.back();
-        },
-        style: ElevatedButton.styleFrom(
-          backgroundColor: color,
-          padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
+
+    return Obx(() {
+      if (controller.isLoading.value) {
+        return SizedBox(
+          width: double.infinity,
+          child: ElevatedButton(
+            onPressed: () {},
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.grey.shade300,
+              padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
+            child: SizedBox(
+              width: 30,
+              height: 30,
+              child: CircularProgressIndicator(),
+            ),
+          ),
+        );
+      }
+
+      return SizedBox(
+        width: double.infinity,
+        child: ElevatedButton.icon(
+          onPressed: () => _createEmployee(),
+          style: ElevatedButton.styleFrom(
+            backgroundColor: color,
+            padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+          ),
+          icon: const Icon(Icons.person_add, color: Colors.white, size: 20),
+          label: const Text(
+            'Crear Empleado',
+            style: TextStyle(
+              color: Colors.white,
+              fontWeight: FontWeight.w700,
+              fontSize: 16,
+            ),
           ),
         ),
-        icon: const Icon(Icons.person_add, color: Colors.white, size: 20),
-        label: const Text(
-          'Crear Empleado',
-          style: TextStyle(
-            color: Colors.white,
-            fontWeight: FontWeight.w700,
-            fontSize: 16,
-          ),
-        ),
-      ),
+      );
+    });
+  }
+
+  void _createEmployee() {
+    final name = nameController.text.trim();
+    final email = emailController.text.trim();
+    final phone = phoneController.text.trim();
+
+    if (name.isEmpty) {
+      Get.snackbar(
+        'Error',
+        'El nombre del empleado es requerido',
+        snackPosition: SnackPosition.BOTTOM,
+        backgroundColor: Colors.red,
+        colorText: Colors.white,
+      );
+      return;
+    }
+
+    if (email.isEmpty || !email.isEmail) {
+      Get.snackbar(
+        'Error',
+        'Por favor ingresa un email válido',
+        snackPosition: SnackPosition.BOTTOM,
+        backgroundColor: Colors.red,
+        colorText: Colors.white,
+      );
+      return;
+    }
+
+    if (phone.isEmpty) {
+      Get.snackbar(
+        'Error',
+        'El teléfono es requerido',
+        snackPosition: SnackPosition.BOTTOM,
+        backgroundColor: Colors.red,
+        colorText: Colors.white,
+      );
+      return;
+    }
+
+    controller.createEmployee(
+      name: name,
+      email: email,
+      phone: phone,
+      photoData: photoData.value,
     );
   }
 

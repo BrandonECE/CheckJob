@@ -1,209 +1,219 @@
+// lib/presentation/views/admin/my_admin_task_detail_view.dart
+import 'dart:typed_data';
+import 'package:check_job/presentation/controllers/task/admin_task_controller.dart';
 import 'package:check_job/utils/utils.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:check_job/domain/entities/enities.dart';
+import 'package:pdf/pdf.dart';
 
-import '../../../../../domain/entities/enities.dart';
+// PDF & Printing
+import 'package:pdf/widgets.dart' as pw;
+import 'package:printing/printing.dart';
 
-class MyAdminTaskDetailView extends StatelessWidget {
+class MyAdminTaskDetailView extends StatefulWidget {
   const MyAdminTaskDetailView({super.key});
 
-  static const EdgeInsets pagePadding = EdgeInsets.symmetric(
-    horizontal: 26,
-    vertical: 28,
-  );
+  @override
+  State<MyAdminTaskDetailView> createState() => _MyAdminTaskDetailViewState();
+}
+
+class _MyAdminTaskDetailViewState extends State<MyAdminTaskDetailView> {
+  String? _selectedStatus;
 
   @override
   Widget build(BuildContext context) {
-    final t = TaskEntity.example;
+    final AdminTaskController controller = Get.find<AdminTaskController>();
+    final TaskEntity? t = controller.selectedTask.value;
+
+    if (t == null) {
+      return PopScope(
+        onPopInvokedWithResult: (didPop, result) {
+          controller.updateIsLoading(false);
+        },
+        child: Scaffold(
+          body: Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Text('No hay tarea seleccionada'),
+                const SizedBox(height: 20),
+                ElevatedButton(
+                  onPressed: () {
+                    controller.updateIsLoading(false);
+                    Get.back();
+                  },
+                  child: const Text('Volver'),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+
+    // Inicializar el estado seleccionado si es la primera vez
+    _selectedStatus ??= t.status;
+
     final isCompleted = t.status.toLowerCase().contains('completed');
     final isApproved = t.clientFeedback?.approved;
-    final isCompany = t.clientName.contains('Compañía') ||
+    final isCompany =
+        t.clientName.contains('Compañía') ||
         t.clientName.contains('S.A.') ||
         t.clientName.contains('C.A.');
 
-    final initialStatus = () {
-      final s = t.status.toLowerCase();
-      if (s == 'completed' || s == 'in_progress' || s == 'pending') {
-        return s;
-      }
-      return 'pending';
-    }();
-
-    return Scaffold(
-      backgroundColor: _blendWithWhite(context, 0.03),
-      body: SafeArea(
-        child: LayoutBuilder(
-          builder: (context, constraints) {
-            return SingleChildScrollView(
-              child: ConstrainedBox(
-                constraints: BoxConstraints(minHeight: constraints.maxHeight),
-                child: IntrinsicHeight(
-                  child: Padding(
-                    padding: pagePadding,
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const SizedBox(height: 4),
-                        _buildHeader(context),
-                        const SizedBox(height: 16),
-
-                        // Nueva tarjeta principal rediseñada
-                        _buildNewMainCard(context, t, isCompany),
-
-                        const SizedBox(height: 18),
-
-                        // título + id como en la lista (coherente)
-                        Text(
-                          t.title,
-                          style: const TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w700,
-                            color: Colors.black87,
+    return PopScope(
+          onPopInvokedWithResult: (didPop, result) {
+          controller.updateIsLoading(false);
+        },
+      child: Scaffold(
+        backgroundColor: _blendWithWhite(context, 0.03),
+        body: SafeArea(
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              return SingleChildScrollView(
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(minHeight: constraints.maxHeight),
+                  child: IntrinsicHeight(
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 26,
+                        vertical: 28,
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const SizedBox(height: 4),
+                          _buildHeader(context, controller),
+                          const SizedBox(height: 16),
+                          _buildNewMainCard(context, t, isCompany),
+                          const SizedBox(height: 18),
+                          Text(
+                            t.title,
+                            style: const TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w700,
+                              color: Colors.black87,
+                            ),
                           ),
-                        ),
-                        const SizedBox(height: 6),
-                        Text(
-                          'ID: ${t.taskID}',
-                          style: TextStyle(
-                            color: Colors.grey.shade600,
-                            fontSize: 13,
-                          ),
-                        ),
-
-                        const SizedBox(height: 16),
-
-                        // Selector de estado para admin (ahora editable sin StatefulWidget)
-                        _buildStatusSelector(context, initialStatus),
-
-                        const SizedBox(height: 18),
-
-                        // Botones de acción del usuario (solo visualización para admin)
-                        _buildUserActionButtons(
-                          context,
-                          isCompleted: isCompleted,
-                          isApproved: isApproved,
-                        ),
-
-                        const SizedBox(height: 18),
-
-                        // Descripción
-                        Text(
-                          'Descripción',
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w700,
-                            color: Theme.of(context).colorScheme.primary,
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        Container(
-                          width: double.infinity,
-                          padding: const EdgeInsets.all(14),
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            borderRadius: BorderRadius.circular(12),
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.black.withOpacity(0.04),
-                                blurRadius: 10,
-                                offset: const Offset(0, 6),
-                              ),
-                            ],
-                          ),
-                          child: Text(
-                            t.description,
+                          const SizedBox(height: 6),
+                          Text(
+                            'ID: ${t.taskID}',
                             style: TextStyle(
-                              fontSize: 14,
-                              color: Colors.grey.shade800,
+                              color: Colors.grey.shade600,
+                              fontSize: 13,
                             ),
                           ),
-                        ),
-
-                        const SizedBox(height: 16),
-
-                        // Materiales
-                        Text(
-                          'Materiales usados',
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w700,
-                            color: Theme.of(context).colorScheme.primary,
+                          const SizedBox(height: 16),
+                          _buildStatusSelector(context, t),
+                          const SizedBox(height: 18),
+                          _buildUserActionButtons(
+                            context,
+                            isCompleted: isCompleted,
+                            isApproved: isApproved,
                           ),
-                        ),
-                        const SizedBox(height: 8),
-                        _materialsList(context, t.materialsUsed),
-
-                        const SizedBox(height: 16),
-
-                        // Comentario (solo lectura para admin)
-                        Text(
-                          'Comentario',
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w700,
-                            color: Theme.of(context).colorScheme.primary,
+                          const SizedBox(height: 18),
+                          Text(
+                            'Descripción',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w700,
+                              color: Theme.of(context).colorScheme.primary,
+                            ),
                           ),
-                        ),
-                        const SizedBox(height: 8),
-                        _buildCommentBox(context, t.comment?.text),
-
-                        const SizedBox(height: 16),
-
-                        // Metadatos
-                        _buildMetadataSection(context, t, isCompany),
-
-                        // Espaciado adicional antes del botón de guardar
-                        const SizedBox(height: 24),
-
-                        // Botón de guardar para admin
-                        // Botón de imprimir (nuevo)
-                        _buildPrintButton(context),
-
-                        const SizedBox(height: 12),
-
-                        _buildSaveButton(context),
-
-                        const SizedBox(height: 12),
-
-                        // Botón de eliminar
-                        _buildDeleteButton(context),
-
-                        const SizedBox(height: 20),
-
-                        Center(
-                          child: Padding(
-                            padding: const EdgeInsets.only(bottom: 6),
+                          const SizedBox(height: 8),
+                          Container(
+                            width: double.infinity,
+                            padding: const EdgeInsets.all(14),
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(12),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withOpacity(0.04),
+                                  blurRadius: 10,
+                                  offset: const Offset(0, 6),
+                                ),
+                              ],
+                            ),
                             child: Text(
-                              'Vista de administrador • Solo lectura',
+                              t.description,
                               style: TextStyle(
-                                fontSize: 12,
-                                color: Colors.grey.shade600,
+                                fontSize: 14,
+                                color: Colors.grey.shade800,
                               ),
                             ),
                           ),
-                        ),
-                        const SizedBox(height: 6),
-                      ],
+                          const SizedBox(height: 16),
+                          Text(
+                            'Materiales usados',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w700,
+                              color: Theme.of(context).colorScheme.primary,
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          _materialsList(context, t.materialsUsed),
+                          const SizedBox(height: 16),
+                          Text(
+                            'Comentario',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w700,
+                              color: Theme.of(context).colorScheme.primary,
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          _buildCommentBox(context, t.comment?.text),
+                          const SizedBox(height: 16),
+                          _buildMetadataSection(context, t, isCompany),
+                          const SizedBox(height: 24),
+                          _buildPrintButton(context, t, controller),
+                          if (t.clientFeedback == null) ...[
+                            const SizedBox(height: 12),
+                            _buildSaveButton(context, t),
+                            const SizedBox(height: 12),
+                            _buildDeleteButton(context, t),
+                          ],
+                          const SizedBox(height: 20),
+                          Center(
+                            child: Padding(
+                              padding: const EdgeInsets.only(bottom: 6),
+                              child: Text(
+                                'Vista de administrador • Gestión completa',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: Colors.grey.shade600,
+                                ),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 6),
+                        ],
+                      ),
                     ),
                   ),
                 ),
-              ),
-            );
-          },
+              );
+            },
+          ),
         ),
       ),
     );
   }
 
-  Widget _buildHeader(BuildContext context) {
+  Widget _buildHeader(BuildContext context, AdminTaskController controller) {
     final color = Theme.of(context).colorScheme.primary;
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        // Botón de retroceso
         GestureDetector(
-          onTap: () => Get.back(),
+          onTap: () {
+            controller.updateIsLoading(false);
+            Get.back();
+          },
           child: Container(
             padding: const EdgeInsets.all(11.5),
             decoration: BoxDecoration(
@@ -220,8 +230,6 @@ class MyAdminTaskDetailView extends StatelessWidget {
             child: Icon(Icons.arrow_back_ios_new, size: 18, color: color),
           ),
         ),
-
-        // Título
         Text(
           'Detalles del Trabajo',
           style: TextStyle(
@@ -230,8 +238,6 @@ class MyAdminTaskDetailView extends StatelessWidget {
             fontWeight: FontWeight.w700,
           ),
         ),
-
-        // Espacio para mantener la simetría
         const SizedBox(width: 41),
       ],
     );
@@ -260,7 +266,6 @@ class MyAdminTaskDetailView extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Fila superior: Cliente y Estado
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
@@ -316,13 +321,9 @@ class MyAdminTaskDetailView extends StatelessWidget {
               ),
             ],
           ),
-
           const SizedBox(height: 12),
-
-          // Fila media: Información de la tarea
           Row(
             children: [
-              // Información de fecha y asignado
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -341,10 +342,7 @@ class MyAdminTaskDetailView extends StatelessWidget {
                   ],
                 ),
               ),
-
               const SizedBox(width: 12),
-
-              // Avatar con anillo (diseño que te gustaba) - ahora con foto
               _buildAvatarRing(context, avatarInnerSize, ringPadding, t),
             ],
           ),
@@ -413,10 +411,10 @@ class MyAdminTaskDetailView extends StatelessWidget {
               shape: BoxShape.circle,
             ),
             child: Center(
-              child: task.photoData != null
+              child: task.photoEmployeeData != null
                   ? ClipOval(
                       child: Image.memory(
-                        task.photoData!,
+                        task.photoEmployeeData!,
                         width: avatarInnerSize - 4,
                         height: avatarInnerSize - 4,
                         fit: BoxFit.cover,
@@ -433,7 +431,6 @@ class MyAdminTaskDetailView extends StatelessWidget {
             ),
           ),
         ),
-        // estado pequeño (dot)
         Positioned(
           right: 6,
           bottom: 6,
@@ -458,20 +455,13 @@ class MyAdminTaskDetailView extends StatelessWidget {
     );
   }
 
-  // Ahora el selector usa ValueNotifier + ValueListenableBuilder para que sea desplegable
-  // sin convertir el widget en StatefulWidget.
-  Widget _buildStatusSelector(BuildContext context, String initialStatus) {
+  Widget _buildStatusSelector(BuildContext context, TaskEntity task) {
     final statuses = ['pending', 'in_progress', 'completed'];
     final statusLabels = {
       'pending': 'Pendiente',
       'in_progress': 'En Proceso',
       'completed': 'Completado',
     };
-
-    // Nota: se crea dentro del build. Si tu UI se reconstruye mucho y quieres persistir
-    // la selección entre reconstrucciones, considera manejar este ValueNotifier desde
-    // un controlador GetX o pasarlo desde arriba. Para muchos casos esto funciona bien.
-    final statusNotifier = ValueNotifier<String>(initialStatus);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -485,55 +475,57 @@ class MyAdminTaskDetailView extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 8),
-        ValueListenableBuilder<String>(
-          valueListenable: statusNotifier,
-          builder: (context, value, _) {
-            return Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(12),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.04),
-                    blurRadius: 8,
-                    offset: const Offset(0, 4),
-                  ),
-                ],
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(12),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.04),
+                blurRadius: 8,
+                offset: const Offset(0, 4),
               ),
-              child: DropdownButtonHideUnderline(
-                child: DropdownButton<String>(
-                  value: value,
-                  isExpanded: true,
-                  items: statuses.map((String status) {
-                    return DropdownMenuItem<String>(
-                      value: status,
-                      child: Row(
-                        children: [
-                          Icon(
-                            _getStatusIcon(status),
-                            size: 16,
+            ],
+          ),
+          child: AbsorbPointer(
+            absorbing: task.clientFeedback != null,
+            child: DropdownButtonHideUnderline(
+              child: DropdownButton<String>(
+                value: _selectedStatus,
+                isExpanded: true,
+                items: statuses.map((String status) {
+                  return DropdownMenuItem<String>(
+                    value: status,
+                    child: Row(
+                      children: [
+                        Icon(
+                          _getStatusIcon(status),
+                          size: 16,
+                          color: _statusColor(status),
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          statusLabels[status] ?? status,
+                          style: TextStyle(
                             color: _statusColor(status),
+                            fontWeight: FontWeight.w600,
                           ),
-                          const SizedBox(width: 8),
-                          Text(
-                            statusLabels[status] ?? status,
-                            style: TextStyle(
-                              color: _statusColor(status),
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ],
-                      ),
-                    );
-                  }).toList(),
-                  onChanged: (v) {
-                    if (v != null) statusNotifier.value = v;
-                  },
-                ),
+                        ),
+                      ],
+                    ),
+                  );
+                }).toList(),
+                onChanged: (newStatus) {
+                  if (newStatus != null) {
+                    setState(() {
+                      _selectedStatus = newStatus;
+                    });
+                  }
+                },
               ),
-            );
-          },
+            ),
+          ),
         ),
       ],
     );
@@ -548,32 +540,64 @@ class MyAdminTaskDetailView extends StatelessWidget {
     final errorColor = colorScheme.error;
     final accent1 = colorScheme.primary;
 
-    // Determinar el estado de los botones
     final bool isApprovedFinal = isApproved ?? false;
     final bool isRejected = isApproved == false;
 
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          'Decisión del usuario',
-          style: TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.w700,
-            color: Theme.of(context).colorScheme.primary,
+        // Estado del feedback si ya existe
+        if (isApproved != null) ...[
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            decoration: BoxDecoration(
+              color: isApprovedFinal
+                  ? Colors.green.shade50
+                  : Colors.red.shade50,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: isApprovedFinal
+                    ? Colors.green.shade200
+                    : Colors.red.shade200,
+              ),
+            ),
+            child: Row(
+              children: [
+                Icon(
+                  isApprovedFinal ? Icons.check_circle : Icons.cancel,
+                  color: isApprovedFinal ? Colors.green : Colors.red,
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    isApprovedFinal
+                        ? 'Tarea aprobada por el cliente'
+                        : 'Tarea rechazada por el cliente',
+                    style: TextStyle(
+                      color: isApprovedFinal
+                          ? Colors.green.shade800
+                          : Colors.red.shade800,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ),
-        ),
-        const SizedBox(height: 8),
+          const SizedBox(height: 12),
+        ],
+
+        // Botones de acción (solo visuales, no interactivos)
         Row(
           children: [
-            // Botón Rechazar (solo visual)
+            // Botón Rechazar
             Expanded(
               child: Container(
                 height: 52,
                 decoration: BoxDecoration(
                   color: isRejected
                       ? errorColor.withOpacity(0.2)
-                      : Colors.white.withOpacity(0.5),
+                      : Colors.white,
                   borderRadius: BorderRadius.circular(12),
                   border: Border.all(
                     color: isRejected
@@ -581,6 +605,13 @@ class MyAdminTaskDetailView extends StatelessWidget {
                         : errorColor.withOpacity(0.14),
                     width: isRejected ? 2 : 1,
                   ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.04),
+                      blurRadius: 8,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
                 ),
                 child: Center(
                   child: Row(
@@ -611,19 +642,41 @@ class MyAdminTaskDetailView extends StatelessWidget {
             ),
             const SizedBox(width: 12),
 
-            // Botón Aprobar (solo visual)
+            // Botón Aprobar
             Expanded(
               child: Container(
                 height: 52,
                 decoration: BoxDecoration(
-                  color: isApprovedFinal
-                      ? accent1.withOpacity(0.2)
-                      : Colors.white.withOpacity(0.5),
                   borderRadius: BorderRadius.circular(12),
+                  gradient: isApprovedFinal
+                      ? LinearGradient(
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                          colors: [accent1, accent1.withOpacity(0.8)],
+                        )
+                      : null,
+                  color: !isApprovedFinal ? Colors.white : null,
                   border: Border.all(
-                    color: isApprovedFinal ? accent1 : accent1.withOpacity(0.3),
-                    width: isApprovedFinal ? 2 : 1,
+                    color: isApprovedFinal
+                        ? accent1.withOpacity(0.5)
+                        : accent1.withOpacity(0.3),
+                    width: isApprovedFinal ? 1.5 : 1,
                   ),
+                  boxShadow: isApprovedFinal
+                      ? [
+                          BoxShadow(
+                            color: accent1.withOpacity(0.3),
+                            blurRadius: 10,
+                            offset: const Offset(0, 4),
+                          ),
+                        ]
+                      : [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.04),
+                            blurRadius: 8,
+                            offset: const Offset(0, 4),
+                          ),
+                        ],
                 ),
                 child: Center(
                   child: Row(
@@ -633,7 +686,7 @@ class MyAdminTaskDetailView extends StatelessWidget {
                         Icons.check,
                         size: 18,
                         color: isApprovedFinal
-                            ? accent1
+                            ? Colors.white
                             : accent1.withOpacity(0.3),
                       ),
                       const SizedBox(width: 8),
@@ -641,7 +694,7 @@ class MyAdminTaskDetailView extends StatelessWidget {
                         'Aprobar',
                         style: TextStyle(
                           color: isApprovedFinal
-                              ? accent1
+                              ? Colors.white
                               : accent1.withOpacity(0.3),
                           fontWeight: FontWeight.w700,
                           fontSize: 15,
@@ -654,6 +707,7 @@ class MyAdminTaskDetailView extends StatelessWidget {
             ),
           ],
         ),
+
         const SizedBox(height: 8),
         if (isApproved == null)
           Text(
@@ -819,119 +873,613 @@ class MyAdminTaskDetailView extends StatelessWidget {
     );
   }
 
-  Widget _buildSaveButton(BuildContext context) {
-    return SizedBox(
-      width: double.infinity,
-      child: ElevatedButton.icon(
-        onPressed: () {
-          // Aquí iría la lógica para guardar los cambios
-          Get.snackbar(
-            'Guardado',
-            'Los cambios se han guardado correctamente',
-            snackPosition: SnackPosition.BOTTOM,
-            backgroundColor: Colors.green,
-            colorText: Colors.white,
-          );
-        },
-        style: ElevatedButton.styleFrom(
-          backgroundColor: Theme.of(context).colorScheme.primary,
-          padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
+  Widget _buildPrintButton(
+    BuildContext context,
+    TaskEntity task,
+    AdminTaskController controller,
+  ) {
+    return Obx(() {
+      final isLoading = controller.isPrintButtonLoading.value;
+      return SizedBox(
+        width: double.infinity,
+        child: OutlinedButton.icon(
+          onPressed: () async {
+            controller.updateIsPrintButtonLoading(true);
+            try {
+              final pdfData = await _buildTaskPdfData(task);
+              // abrir diálogo de impresión usando el PDF en memoria (no guardamos en disco)
+              await Printing.layoutPdf(onLayout: (format) async => pdfData);
+            } catch (e) {
+              print("ERROR $e");
+              _showErrorSnackbar('Error al generar PDF: $e');
+            }
+            controller.updateIsPrintButtonLoading(false);
+          },
+          style: OutlinedButton.styleFrom(
+            padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
           ),
+          icon: isLoading
+              ? SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    valueColor: AlwaysStoppedAnimation<Color>(
+                      Theme.of(context).colorScheme.primary,
+                    ),
+                  ),
+                )
+              : Icon(Icons.print, color: Theme.of(context).colorScheme.primary),
+          label: isLoading
+              ? Text(
+                  'Imprimiendo...',
+                  style: TextStyle(
+                    color: Theme.of(context).colorScheme.primary,
+                    fontWeight: FontWeight.w700,
+                    fontSize: 16,
+                  ),
+                )
+              : Text(
+                  'Imprimir Detalles',
+                  style: TextStyle(
+                    color: Theme.of(context).colorScheme.primary,
+                    fontWeight: FontWeight.w700,
+                    fontSize: 16,
+                  ),
+                ),
         ),
-        icon: const Icon(Icons.save, color: Colors.white, size: 20),
-        label: const Text(
-          'Guardar Cambios',
-          style: TextStyle(
-            color: Colors.white,
-            fontWeight: FontWeight.w700,
-            fontSize: 16,
-          ),
-        ),
-      ),
-    );
+      );
+    });
   }
 
-  // Nuevo: botón de impresión
-  Widget _buildPrintButton(BuildContext context) {
-    return SizedBox(
-      width: double.infinity,
-      child: OutlinedButton.icon(
-        onPressed: () {
-          // Aquí puedes integrar un paquete de impresión (ej. `printing`) para generar PDF
-          // y enviarlo a impresora. Por ahora mostramos una notificación de ejemplo.
-          Get.snackbar(
-            'Impresión',
-            'Preparando documento para imprimir...',
-            snackPosition: SnackPosition.BOTTOM,
-          );
+  /// Genera un PDF en memoria con la información de la tarea y lo devuelve como Uint8List.
+  Future<Uint8List> _buildTaskPdfData(TaskEntity task) async {
+    final doc = pw.Document();
 
-          // Ejemplo (comentado) de uso del paquete `printing`:
-          // import 'package:printing/printing.dart';
-          // Printing.layoutPdf(onLayout: (format) async => myPdfDocument);
+    // imagen opcional (empleado)
+    pw.MemoryImage? employeeImage;
+    if (task.photoEmployeeData != null) {
+      try {
+        employeeImage = pw.MemoryImage(task.photoEmployeeData!);
+      } catch (_) {
+        employeeImage = null;
+      }
+    }
+
+    final createdAt = task.createdAt.toDate();
+    final completedAt = task.completedAt?.toDate();
+
+    // tabla de materiales
+    final materialRows = <List<String>>[];
+    for (final m in task.materialsUsed) {
+      materialRows.add([m.materialName, m.quantity.toString(), m.unit]);
+    }
+
+    doc.addPage(
+      pw.MultiPage(
+        pageFormat: PdfPageFormat.a4,
+        margin: pw.EdgeInsets.all(28),
+        build: (context) {
+          return <pw.Widget>[
+            pw.Row(
+              mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+              crossAxisAlignment: pw.CrossAxisAlignment.start,
+              children: [
+                pw.Column(
+                  crossAxisAlignment: pw.CrossAxisAlignment.start,
+                  children: [
+                    pw.Text(
+                      'Detalles del Trabajo',
+                      style: pw.TextStyle(
+                        fontSize: 22,
+                        fontWeight: pw.FontWeight.bold,
+                      ),
+                    ),
+                    pw.SizedBox(height: 6),
+                    pw.Text(
+                      'ID: ${task.taskID}',
+                      style: pw.TextStyle(fontSize: 12),
+                    ),
+                  ],
+                ),
+                if (employeeImage != null)
+                  pw.Container(
+                    width: 80,
+                    height: 80,
+                    decoration: pw.BoxDecoration(
+                      border: pw.Border.all(
+                        width: 0.5,
+                        color: PdfColors.grey300,
+                      ),
+                      borderRadius: pw.BorderRadius.circular(8),
+                    ),
+                    child: pw.ClipRRect(
+                      horizontalRadius: 8,
+                      verticalRadius: 8,
+                      child: pw.Image(employeeImage, fit: pw.BoxFit.cover),
+                    ),
+                  ),
+              ],
+            ),
+            pw.SizedBox(height: 12),
+            pw.Container(height: 1, color: PdfColors.grey300),
+            pw.SizedBox(height: 12),
+
+            // General info
+            pw.Row(
+              crossAxisAlignment: pw.CrossAxisAlignment.start,
+              children: [
+                pw.Expanded(
+                  child: pw.Column(
+                    crossAxisAlignment: pw.CrossAxisAlignment.start,
+                    children: [
+                      pw.Text(
+                        task.title,
+                        style: pw.TextStyle(
+                          fontSize: 16,
+                          fontWeight: pw.FontWeight.bold,
+                        ),
+                      ),
+                      pw.SizedBox(height: 8),
+                      pw.Text(
+                        'Cliente: ${task.clientName}',
+                        style: pw.TextStyle(fontSize: 12),
+                      ),
+                      pw.Text(
+                        'Asignado a: ${task.assignedEmployeeName}',
+                        style: pw.TextStyle(fontSize: 12),
+                      ),
+                      pw.Text(
+                        'Estado: ${_formatStatus(task.status)}',
+                        style: pw.TextStyle(fontSize: 12),
+                      ),
+                      pw.SizedBox(height: 6),
+                      pw.Text(
+                        'Creada: ${createdAt.day}/${createdAt.month}/${createdAt.year}',
+                        style: pw.TextStyle(fontSize: 11),
+                      ),
+                      if (completedAt != null)
+                        pw.Text(
+                          'Completada: ${completedAt.day}/${completedAt.month}/${completedAt.year}',
+                          style: pw.TextStyle(fontSize: 11),
+                        ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+
+            pw.SizedBox(height: 14),
+
+            // Descripción
+            pw.Text(
+              'Descripción',
+              style: pw.TextStyle(fontSize: 14, fontWeight: pw.FontWeight.bold),
+            ),
+            pw.SizedBox(height: 6),
+            pw.Text(
+              task.description,
+              style: pw.TextStyle(fontSize: 11),
+              textAlign: pw.TextAlign.left,
+            ),
+            pw.SizedBox(height: 12),
+
+            // Materiales
+            pw.Text(
+              'Materiales usados',
+              style: pw.TextStyle(fontSize: 14, fontWeight: pw.FontWeight.bold),
+            ),
+            pw.SizedBox(height: 8),
+            if (materialRows.isEmpty)
+              pw.Text(
+                'No se han registrado materiales',
+                style: pw.TextStyle(fontSize: 11, color: PdfColors.grey),
+              )
+            else
+              pw.Table.fromTextArray(
+                context: context,
+                headers: ['Material', 'Cantidad', 'Unidad'],
+                data: materialRows,
+                headerStyle: pw.TextStyle(
+                  fontSize: 11,
+                  fontWeight: pw.FontWeight.bold,
+                ),
+                cellStyle: pw.TextStyle(fontSize: 11),
+                cellAlignment: pw.Alignment.centerLeft,
+                headerDecoration: pw.BoxDecoration(color: PdfColors.grey200),
+                columnWidths: {
+                  0: pw.FlexColumnWidth(4),
+                  1: pw.FlexColumnWidth(2),
+                  2: pw.FlexColumnWidth(2),
+                },
+              ),
+
+            pw.SizedBox(height: 12),
+
+            // Comentario principal (si existe)
+            pw.Text(
+              'Comentario',
+              style: pw.TextStyle(fontSize: 14, fontWeight: pw.FontWeight.bold),
+            ),
+            pw.SizedBox(height: 6),
+            pw.Text(
+              task.comment?.text ?? 'No hay comentarios',
+              style: pw.TextStyle(fontSize: 11),
+            ),
+            pw.SizedBox(height: 14),
+
+            // Pie con metadatos
+            pw.Container(
+              alignment: pw.Alignment.centerLeft,
+              child: pw.Text(
+                'Generado desde la app • ${DateTime.now().day}/${DateTime.now().month}/${DateTime.now().year}',
+                style: pw.TextStyle(fontSize: 9, color: PdfColors.grey),
+              ),
+            ),
+          ];
         },
-        style: OutlinedButton.styleFrom(
-          padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-          ),
-        ),
-        icon: Icon(Icons.print, color: Theme.of(context).colorScheme.primary),
-        label: Text(
-          'Imprimir Detalles',
-          style: TextStyle(
-            color: Theme.of(context).colorScheme.primary,
-            fontWeight: FontWeight.w700,
-            fontSize: 16,
-          ),
-        ),
       ),
     );
+
+    return doc.save();
   }
 
-  Widget _buildDeleteButton(BuildContext context) {
-    return SizedBox(
-      width: double.infinity,
-      child: ElevatedButton.icon(
-        onPressed: () {
-          // Aquí iría la lógica para eliminar la tarea
-          Get.defaultDialog(
-            title: 'Confirmar eliminación',
-            middleText: '¿Estás seguro de que deseas eliminar esta tarea? Esta acción no se puede deshacer.',
-            textConfirm: 'Eliminar',
-            textCancel: 'Cancelar',
-            confirmTextColor: Colors.white,
-            onConfirm: () {
-              Get.back();
-              Get.snackbar(
-                'Eliminado',
-                'La tarea ha sido eliminada correctamente',
-                snackPosition: SnackPosition.BOTTOM,
-                backgroundColor: Colors.red,
-                colorText: Colors.white,
-              );
-            },
-          );
-        },
-        style: ElevatedButton.styleFrom(
-          backgroundColor: Colors.red,
-          padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
+  Widget _buildSaveButton(BuildContext context, TaskEntity task) {
+    final AdminTaskController controller = Get.find<AdminTaskController>();
+
+    return Obx(() {
+      final bool isLoading = controller.isButtonLoading.value;
+
+      return SizedBox(
+        width: double.infinity,
+        child: ElevatedButton.icon(
+          onPressed: isLoading
+              ? null
+              : () async {
+                  if (_selectedStatus != task.status) {
+                    final bool? confirm = await Get.dialog<bool>(
+                      Dialog(
+                        insetPadding: const EdgeInsets.symmetric(
+                          horizontal: 26,
+                          vertical: 28,
+                        ),
+                        backgroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                        child: ConstrainedBox(
+                          constraints: const BoxConstraints(maxWidth: 560),
+                          child: Padding(
+                            padding: const EdgeInsets.fromLTRB(
+                              30,
+                              20,
+                              30,
+                              30,
+                            ), // contentPadding similar a defaultDialog
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                // título con padding superior parecido a titlePadding
+                                Padding(
+                                  padding: const EdgeInsets.only(
+                                    top: 10,
+                                    bottom: 8,
+                                  ),
+                                  child: Text(
+                                    'Confirmar Cambios',
+                                    style: TextStyle(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.w700,
+                                      color: Theme.of(
+                                        context,
+                                      ).colorScheme.primary,
+                                    ),
+                                  ),
+                                ),
+
+                                // mensaje
+                                Text(
+                                  '¿Estás seguro de que deseas cambiar el estado de "${_formatStatus(task.status)}" a "${_formatStatus(_selectedStatus!)}"?',
+                                  style: const TextStyle(
+                                    fontSize: 14,
+                                    height: 1.4,
+                                    color: Colors.black87,
+                                  ),
+                                  textAlign: TextAlign.center,
+                                ),
+
+                                const SizedBox(height: 18),
+
+                                // botones (proporción más contenida)
+                                Row(
+                                  children: [
+                                    Expanded(
+                                      child: OutlinedButton(
+                                        onPressed: () =>
+                                            Get.back(result: false),
+                                        style: OutlinedButton.styleFrom(
+                                          padding: const EdgeInsets.symmetric(
+                                            vertical: 12,
+                                          ),
+                                          shape: RoundedRectangleBorder(
+                                            borderRadius: BorderRadius.circular(
+                                              10,
+                                            ),
+                                          ),
+                                          side: BorderSide(
+                                            color: Theme.of(context)
+                                                .colorScheme
+                                                .primary
+                                                .withOpacity(0.12),
+                                          ),
+                                          foregroundColor: Theme.of(
+                                            context,
+                                          ).colorScheme.primary,
+                                        ),
+                                        child: const Text(
+                                          'Cancelar',
+                                          style: TextStyle(
+                                            fontWeight: FontWeight.w600,
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                    const SizedBox(width: 12),
+                                    Expanded(
+                                      child: TextButton(
+                                        onPressed: () => Get.back(result: true),
+                                        style: ElevatedButton.styleFrom(
+                                          backgroundColor: _statusColor(
+                                            _selectedStatus!,
+                                          ),
+                                          foregroundColor: Colors.white,
+                                          padding: const EdgeInsets.symmetric(
+                                            vertical: 12,
+                                          ),
+                                          shape: RoundedRectangleBorder(
+                                            borderRadius: BorderRadius.circular(
+                                              10,
+                                            ),
+                                          ),
+                                          elevation: 5,
+                                        ),
+                                        child: const Text(
+                                          'Confirmar',
+                                          style: TextStyle(
+                                            fontWeight: FontWeight.w600,
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                    );
+
+                    if (confirm == true) {
+                      await controller.updateTaskStatus(
+                        task.taskID,
+                        _selectedStatus!,
+                      );
+                    }
+                  } else {
+                    Get.snackbar(
+                      'Información',
+                      'No hay cambios para guardar',
+                      snackPosition: SnackPosition.BOTTOM,
+                      backgroundColor: Colors.blue,
+                      colorText: Colors.white,
+                    );
+                  }
+                },
+          style: ElevatedButton.styleFrom(
+            backgroundColor: Theme.of(context).colorScheme.primary,
+            padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
           ),
+          icon: isLoading
+              ? const SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                  ),
+                )
+              : const Icon(Icons.save, color: Colors.white, size: 20),
+          label: isLoading
+              ? const Text(
+                  'Guardando...',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w700,
+                    fontSize: 16,
+                  ),
+                )
+              : const Text(
+                  'Guardar Cambios',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w700,
+                    fontSize: 16,
+                  ),
+                ),
         ),
-        icon: const Icon(Icons.delete, color: Colors.white, size: 20),
-        label: const Text(
-          'Eliminar Tarea',
-          style: TextStyle(
-            color: Colors.white,
-            fontWeight: FontWeight.w700,
-            fontSize: 16,
+      );
+    });
+  }
+
+  Widget _buildDeleteButton(BuildContext context, TaskEntity task) {
+    final AdminTaskController controller = Get.find<AdminTaskController>();
+
+    return Obx(() {
+      final bool isLoading = controller.isButtonLoading.value;
+
+      return SizedBox(
+        width: double.infinity,
+        child: ElevatedButton.icon(
+          onPressed: isLoading
+              ? null
+              : () {
+                  Get.dialog(
+                    Dialog(
+                      insetPadding: const EdgeInsets.symmetric(
+                        horizontal: 26,
+                        vertical: 28,
+                      ),
+                      backgroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                      child: ConstrainedBox(
+                        constraints: const BoxConstraints(maxWidth: 560),
+                        child: Padding(
+                          padding: const EdgeInsets.fromLTRB(30, 20, 30, 30),
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Padding(
+                                padding: const EdgeInsets.only(
+                                  top: 10,
+                                  bottom: 8,
+                                ),
+                                child: Text(
+                                  'Confirmar eliminación',
+                                  style: TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w700,
+                                    color: Theme.of(
+                                      context,
+                                    ).colorScheme.primary,
+                                  ),
+                                ),
+                              ),
+                              Text(
+                                '¿Estás seguro de que deseas eliminar esta tarea? Esta acción no se puede deshacer.',
+                                style: const TextStyle(
+                                  fontSize: 14,
+                                  height: 1.4,
+                                  color: Colors.black87,
+                                ),
+                                textAlign: TextAlign.center,
+                              ),
+                              const SizedBox(height: 18),
+                              Row(
+                                children: [
+                                  Expanded(
+                                    child: OutlinedButton(
+                                      onPressed: () => Get.back(),
+                                      style: OutlinedButton.styleFrom(
+                                        padding: const EdgeInsets.symmetric(
+                                          vertical: 12,
+                                        ),
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius: BorderRadius.circular(
+                                            10,
+                                          ),
+                                        ),
+                                        side: BorderSide(
+                                          color: Theme.of(context)
+                                              .colorScheme
+                                              .primary
+                                              .withOpacity(0.12),
+                                        ),
+                                        foregroundColor: Theme.of(
+                                          context,
+                                        ).colorScheme.primary,
+                                      ),
+                                      child: const Text(
+                                        'Cancelar',
+                                        style: TextStyle(
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 12),
+                                  Expanded(
+                                    child: TextButton(
+                                      onPressed: () {
+                                        Get.back();
+                                        controller.deleteTask(task.taskID);
+                                      },
+                                      style: ElevatedButton.styleFrom(
+                                        backgroundColor: Colors.red,
+                                        foregroundColor: Colors.white,
+                                        padding: const EdgeInsets.symmetric(
+                                          vertical: 12,
+                                        ),
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius: BorderRadius.circular(
+                                            10,
+                                          ),
+                                        ),
+                                        elevation: 5,
+                                      ),
+                                      child: const Text(
+                                        'Eliminar',
+                                        style: TextStyle(
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                    barrierDismissible: true,
+                  );
+                },
+          style: ElevatedButton.styleFrom(
+            backgroundColor: Colors.red,
+            padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
           ),
+          icon: isLoading
+              ? const SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                  ),
+                )
+              : const Icon(Icons.delete, color: Colors.white, size: 20),
+          label: isLoading
+              ? const Text(
+                  'Eliminando...',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w700,
+                    fontSize: 16,
+                  ),
+                )
+              : const Text(
+                  'Eliminar Tarea',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w700,
+                    fontSize: 16,
+                  ),
+                ),
         ),
-      ),
-    );
+      );
+    });
   }
 
   IconData _getStatusIcon(String status) {
@@ -963,7 +1511,17 @@ class MyAdminTaskDetailView extends StatelessWidget {
     return Colors.blue;
   }
 
-  // Helper: mezcla un tint del primary sobre blanco (igual patrón)
+  void _showErrorSnackbar(String message) {
+    Get.snackbar(
+      'Error',
+      message,
+      snackPosition: SnackPosition.BOTTOM,
+      backgroundColor: Colors.red,
+      colorText: Colors.white,
+      duration: const Duration(seconds: 4),
+    );
+  }
+
   static Color _blendWithWhite(BuildContext context, double amount) {
     final primary = Theme.of(context).colorScheme.primary;
     return Color.alphaBlend(primary.withOpacity(amount), Colors.white);

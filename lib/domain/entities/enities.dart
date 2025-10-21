@@ -1,3 +1,12 @@
+export 'package:check_job/domain/entities/statistics_entity.dart';
+export 'package:check_job/domain/entities/report_entity.dart';
+export 'package:check_job/domain/entities/invoice_entity.dart';
+export 'package:check_job/domain/entities/employee_entity.dart';
+export 'package:check_job/domain/entities/client_entity.dart';
+export 'package:check_job/domain/entities/material_entity.dart';
+export 'package:check_job/domain/entities/notification_entity.dart';
+export 'package:check_job/domain/entities/audit_log_entity.dart';
+export 'package:check_job/domain/entities/admin_entity.dart';
 export 'package:check_job/domain/entities/task_entity/task_client_feed_back_entity.dart';
 export 'package:check_job/domain/entities/task_entity/task_comment_entity.dart';
 export 'package:check_job/domain/entities/task_entity/task_material_used_entity.dart';

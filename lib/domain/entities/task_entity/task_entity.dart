@@ -17,7 +17,7 @@ class TaskEntity {
   final TaskClientFeedbackEntity? clientFeedback;
   final List<TaskMaterialUsedEntity> materialsUsed;
   final TaskCommentEntity? comment; // Comentario principal de la tarea
-  Uint8List? photoData;
+  Uint8List? photoEmployeeData;
 
   TaskEntity({
     required this.taskID,
@@ -33,16 +33,16 @@ class TaskEntity {
     this.clientFeedback,
     required this.materialsUsed,
     this.comment,
-    this.photoData,
+    this.photoEmployeeData,
   });
 
   void setPhoto(Uint8List bytes) {
-    photoData = bytes;
+    photoEmployeeData = bytes;
   }
 
   /// Limpia la imagen (la deja nula).
   void clearPhoto() {
-    photoData = null;
+    photoEmployeeData = null;
   }
 
   // Convertir a Map para Firestore
@@ -110,7 +110,12 @@ class TaskEntity {
         submittedAt: Timestamp.now(),
       ),
       materialsUsed: [
-        TaskMaterialUsedEntity(materialID: 'mat_001', materialName: "Aceite", quantity: 4, unit: 'Lts'),
+        TaskMaterialUsedEntity(
+          materialID: 'mat_001',
+          materialName: "Aceite",
+          quantity: 4,
+          unit: 'Lts',
+        ),
         TaskMaterialUsedEntity(
           materialName: "Tornillos",
           materialID: 'mat_002',
@@ -132,3 +137,5 @@ class TaskEntity {
     );
   }
 }
+
+

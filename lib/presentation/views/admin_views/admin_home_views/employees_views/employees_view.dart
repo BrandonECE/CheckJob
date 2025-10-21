@@ -1,45 +1,13 @@
 import 'package:check_job/config/routes.dart';
+import 'package:check_job/domain/entities/enities.dart';
+import 'package:check_job/presentation/controllers/employee/employee_controller.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:get/get_core/src/get_main.dart';
 
 class MyEmployeesView extends StatelessWidget {
   MyEmployeesView({super.key});
 
-  final List<Map<String, dynamic>> _sampleEmployees = [
-    {
-      'name': 'Carlos Méndez',
-      'email': 'carlos@empresa.com',
-      'phone': '+1234567890',
-      'status': 'Activo',
-    },
-    {
-      'name': 'Fernanda Torres',
-      'email': 'fernanda@empresa.com',
-      'phone': '+0987654321',
-      'status': 'Activo',
-    },
-    {
-      'name': 'Luis Pérez',
-      'email': 'luis@empresa.com',
-      'phone': '+1122334455',
-      'status': 'Inactivo',
-    },
-    {
-      'name': 'Mariana López',
-      'email': 'mariana@empresa.com',
-      'phone': '+4455667788',
-      'status': 'Activo',
-    },
-    {
-      'name': 'Sofía Rodríguez',
-      'email': 'sofia@empresa.com',
-      'phone': '+9988776655',
-      'status': 'Inactivo',
-    },
-  ];
-
-  static const EdgeInsets pagePadding = EdgeInsets.symmetric(horizontal: 26, vertical: 28);
+  final EmployeeController controller = Get.find<EmployeeController>();
 
   @override
   Widget build(BuildContext context) {
@@ -47,7 +15,7 @@ class MyEmployeesView extends StatelessWidget {
       backgroundColor: _blendWithWhite(context, 0.03),
       body: SafeArea(
         child: Padding(
-          padding: pagePadding,
+          padding: const EdgeInsets.symmetric(horizontal: 26, vertical: 28),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -55,9 +23,7 @@ class MyEmployeesView extends StatelessWidget {
               const SizedBox(height: 20),
               _buildSearchField(context),
               const SizedBox(height: 20),
-              Expanded(
-                child: _buildEmployeesList(context),
-              ),
+              _buildEmployeesList(context),
             ],
           ),
         ),
@@ -77,7 +43,13 @@ class MyEmployeesView extends StatelessWidget {
             decoration: BoxDecoration(
               color: Colors.white,
               borderRadius: BorderRadius.circular(12),
-              boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.08), blurRadius: 6, offset: const Offset(0, 3))],
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.08),
+                  blurRadius: 6,
+                  offset: const Offset(0, 3),
+                ),
+              ],
             ),
             child: Icon(Icons.arrow_back_ios_new, size: 18, color: color),
           ),
@@ -140,17 +112,45 @@ class MyEmployeesView extends StatelessWidget {
   }
 
   Widget _buildEmployeesList(BuildContext context) {
-    return ListView.builder(
-      itemCount: _sampleEmployees.length,
-      itemBuilder: (context, index) {
-        return GestureDetector(
-          onTap: () => Get.toNamed(Routes.myEmployeePortalView),
-          child: _employeeCard(context, _sampleEmployees[index]));
-      },
-    );
+    return Obx(() {
+      if (controller.isLoading.value) {
+        return const Expanded(
+          child: Center(child: CircularProgressIndicator()),
+        );
+      }
+
+      final employees = controller.employees;
+
+      if (employees.isEmpty) {
+        return const Expanded(
+          child: Center(
+            child: Text(
+              'No hay empleados registrados',
+              style: TextStyle(color: Colors.grey, fontSize: 16),
+            ),
+          ),
+        );
+      }
+
+      return Expanded(
+        child: ListView.builder(
+          itemCount: employees.length,
+          itemBuilder: (context, index) {
+            return GestureDetector(
+              onTap: () async {
+                await controller.selectEmployee(employees[index].employeesID);
+                Get.toNamed(Routes.myEmployeePortalView);
+              },
+              child: _employeeCard(context, employees[index]),
+            );
+          },
+        ),
+      );
+    });
   }
 
-  Widget _employeeCard(BuildContext context, Map<String, dynamic> employee) {
+  Widget _employeeCard(BuildContext context, EmployeeEntity employee) {
+    final isActive = employee.isActive;
     final color = Theme.of(context).colorScheme.primary;
     
     return Container(
@@ -169,7 +169,7 @@ class MyEmployeesView extends StatelessWidget {
       ),
       child: Row(
         children: [
-          // Avatar con gradiente (mismo diseño que clientes pero con icono de persona)
+          // Avatar con foto o icono por defecto
           Container(
             padding: const EdgeInsets.all(4),
             decoration: BoxDecoration(
@@ -184,10 +184,15 @@ class MyEmployeesView extends StatelessWidget {
               ),
               boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 6, offset: const Offset(0, 3))],
             ),
-            child: const CircleAvatar(
+            child: CircleAvatar(
               radius: 22,
               backgroundColor: Colors.white,
-              child: Icon(Icons.person, size: 24, color: Colors.teal),
+              backgroundImage: employee.photoData != null
+                  ? MemoryImage(employee.photoData!)
+                  : null,
+              child: employee.photoData == null
+                  ? Icon(Icons.person, size: 24, color: Colors.teal)
+                  : null,
             ),
           ),
           const SizedBox(width: 16),
@@ -196,44 +201,43 @@ class MyEmployeesView extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  employee['name'],
+                  employee.name,
                   style: const TextStyle(
                     fontWeight: FontWeight.w600,
                     fontSize: 15,
                   ),
                 ),
                 const SizedBox(height: 4),
-                Text(
-                  employee['email'],
-                  style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                SizedBox(
+                  width: MediaQuery.of(context).size.width * 0.4,
+                  child: Text(
+                    employee.email,
+                    style: TextStyle(fontSize: 12, color: Colors.grey.shade600,overflow: TextOverflow.ellipsis),
+                  ),
                 ),
                 Text(
-                  employee['phone'],
+                  employee.phone,
                   style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
-                ),
-              ],
+                ),]
             ),
           ),
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
             decoration: BoxDecoration(
-              color: employee['status'] == 'Activo'
-                  ? Colors.green.shade100
-                  : Colors.grey.shade200,
+              color: isActive == null  ?Colors.grey.shade200 : isActive ? Colors.green.shade100 : Colors.grey.shade200,
               borderRadius: BorderRadius.circular(20),
             ),
             child: Text(
-              employee['status'],
+              isActive == null ? 'Inactivo' : isActive ? 'Activo' : 'Inactivo',
               style: TextStyle(
-                color: employee['status'] == 'Activo'
-                    ? Colors.green
-                    : Colors.grey,
+                color: isActive == null ? Colors.grey : isActive ? Colors.green : Colors.grey,
                 fontSize: 12,
                 fontWeight: FontWeight.w600,
               ),
             ),
           ),
-        ],
+        ]
+      
       ),
     );
   }

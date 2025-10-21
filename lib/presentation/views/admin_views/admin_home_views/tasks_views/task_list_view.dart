@@ -1,39 +1,17 @@
+// lib/presentation/views/admin/my_task_list_view.dart
 import 'package:check_job/config/routes.dart';
+import 'package:check_job/presentation/controllers/task/admin_task_controller.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:check_job/domain/entities/enities.dart';
 
 class MyTaskListView extends StatelessWidget {
   const MyTaskListView({super.key});
 
-  final List<Map<String, dynamic>> tasks = const [
-    {
-      'id': 'TRAB-001',
-      'title': 'Mantenimiento Preventivo',
-      'client': 'Empresa ABC',
-      'status': 'Completado',
-    },
-    {
-      'id': 'TRAB-002',
-      'title': 'Reparación Motor',
-      'client': 'Compañía XYZ',
-      'status': 'En Proceso',
-    },
-    {
-      'id': 'TRAB-003',
-      'title': 'Cambio de Aceite',
-      'client': 'Negocio 123',
-      'status': 'Pendiente',
-    },
-    {
-      'id': 'TRAB-004',
-      'title': 'Revisión Frenos',
-      'client': 'Cliente Nuevo',
-      'status': 'Pendiente',
-    },
-  ];
-
   @override
   Widget build(BuildContext context) {
+    final AdminTaskController controller = Get.find<AdminTaskController>();
+
     return Scaffold(
       backgroundColor: _blendWithWhite(context, 0.03),
       body: SafeArea(
@@ -46,7 +24,7 @@ class MyTaskListView extends StatelessWidget {
               const SizedBox(height: 20),
               _buildSearchField(context),
               const SizedBox(height: 20),
-              _buildTasksList(context),
+              _buildTasksList(context, controller),
             ],
           ),
         ),
@@ -58,7 +36,7 @@ class MyTaskListView extends StatelessWidget {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-           GestureDetector(
+        GestureDetector(
           onTap: () => Get.back(),
           child: Container(
             padding: const EdgeInsets.all(11.5),
@@ -67,7 +45,7 @@ class MyTaskListView extends StatelessWidget {
               borderRadius: BorderRadius.circular(12),
               boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.08), blurRadius: 6, offset: const Offset(0, 3))],
             ),
-            child: Icon(Icons.arrow_back_ios_new, size: 18, color:  Theme.of(context).colorScheme.primary),
+            child: Icon(Icons.arrow_back_ios_new, size: 18, color: Theme.of(context).colorScheme.primary),
           ),
         ),
         Text(
@@ -86,7 +64,6 @@ class MyTaskListView extends StatelessWidget {
     );
   }
 
-  // Nuevo: buscador visual (solo diseño)
   Widget _buildSearchField(BuildContext context) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
@@ -107,7 +84,7 @@ class MyTaskListView extends StatelessWidget {
           const SizedBox(width: 10),
           Expanded(
             child: TextField(
-              onChanged: (_) {}, // diseño-only
+              onChanged: (_) {},
               decoration: InputDecoration(
                 hintText: 'Buscar tarea...',
                 hintStyle: TextStyle(color: Colors.grey.shade500),
@@ -118,7 +95,6 @@ class MyTaskListView extends StatelessWidget {
             ),
           ),
           const SizedBox(width: 8),
-          // botón visual para filtro/clear (no funcional)
           GestureDetector(
             onTap: () {},
             child: Container(
@@ -135,24 +111,43 @@ class MyTaskListView extends StatelessWidget {
     );
   }
 
-  Widget _buildTasksList(BuildContext context) {
-    return Expanded(
-      child: ListView.builder(
-        itemCount: tasks.length,
-        itemBuilder: (context, index) {
-          return GestureDetector(
-            onTap: () => Get.toNamed(Routes.myAdminTaskDetailView),
-            child: _taskCard(context, tasks[index]),
-          );
-        },
-      ),
-    );
+  Widget _buildTasksList(BuildContext context, AdminTaskController controller) {
+    return Obx(() {
+      if (controller.isLoading.value) {
+        return const Expanded(
+          child: Center(
+            child: CircularProgressIndicator(),
+          ),
+        );
+      }
+
+      if (controller.tasks.isEmpty) {
+        return const Expanded(
+          child: Center(
+            child: Text('No hay tareas disponibles'),
+          ),
+        );
+      }
+
+      return Expanded(
+        child: ListView.builder(
+          itemCount: controller.tasks.length,
+          itemBuilder: (context, index) {
+            final task = controller.tasks[index];
+            return GestureDetector(
+              onTap: () {
+                controller.selectTask(task);
+              },
+              child: _taskCard(context, task),
+            );
+          },
+        ),
+      );
+    });
   }
 
-  Widget _taskCard(BuildContext context, Map<String, dynamic> task) {
-    Color statusColor = Colors.green;
-    if (task['status'] == 'En Proceso') statusColor = Colors.orange;
-    if (task['status'] == 'Pendiente') statusColor = Colors.grey;
+  Widget _taskCard(BuildContext context, TaskEntity task) {
+    Color statusColor = _statusColor(task.status);
 
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
@@ -180,15 +175,15 @@ class MyTaskListView extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  task['title'],
+                  task.title,
                   style: TextStyle(fontWeight: FontWeight.w600),
                 ),
                 Text(
-                  'Cliente: ${task['client']}',
+                  'Cliente: ${task.clientName}',
                   style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
                 ),
                 Text(
-                  'ID: ${task['id']}',
+                  'ID: ${task.taskID}',
                   style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
                 ),
               ],
@@ -204,7 +199,7 @@ class MyTaskListView extends StatelessWidget {
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Text(
-                  task['status'],
+                  _formatStatus(task.status),
                   style: TextStyle(
                     color: statusColor,
                     fontSize: 10,
@@ -212,12 +207,27 @@ class MyTaskListView extends StatelessWidget {
                   ),
                 ),
               ),
-            
             ],
           ),
         ],
       ),
     );
+  }
+
+  Color _statusColor(String status) {
+    final lowerStatus = status.toLowerCase();
+    if (lowerStatus.contains('completed')) return Colors.green;
+    if (lowerStatus.contains('in_progress')) return Colors.orange;
+    if (lowerStatus.contains('pending')) return Colors.grey;
+    return Colors.blue;
+  }
+
+  String _formatStatus(String status) {
+    final lowerStatus = status.toLowerCase();
+    if (lowerStatus == 'completed') return 'Completado';
+    if (lowerStatus == 'in_progress') return 'En Proceso';
+    if (lowerStatus == 'pending') return 'Pendiente';
+    return status;
   }
 
   static Color _blendWithWhite(BuildContext context, double amount) {

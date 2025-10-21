@@ -1,20 +1,18 @@
+// lib/presentation/views/my_admin_login_view.dart
 import 'package:check_job/config/routes.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:get/get_core/src/get_main.dart';
+import 'package:check_job/presentation/controllers/admin/admin_login_controller.dart';
 
 class MyAdminLoginView extends StatelessWidget {
-  const MyAdminLoginView({super.key});
+  MyAdminLoginView({super.key});
+
+  final AdminLoginController controller = Get.find<AdminLoginController>();
 
   @override
   Widget build(BuildContext context) {
-    return _myBody();
-  }
-
-  Scaffold _myBody() {
     return Scaffold(
       body: SafeArea(
-        // Mantener footer abajo y permitir scroll cuando haga falta
         child: LayoutBuilder(
           builder: (context, constraints) {
             return SingleChildScrollView(
@@ -29,32 +27,16 @@ class MyAdminLoginView extends StatelessWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.center,
                       children: [
-                        // (opcional) top-right small badge / back
                         _buildTopRightBack(context),
-
                         const SizedBox(height: 37),
-
-                        // Título principal + avatar con anillo
                         _buildTitleAndAvatar(context),
-
                         const SizedBox(height: 31),
-
-                        // Campos usuario / contraseña
                         _buildFieldsGroup(context),
-
                         const SizedBox(height: 30),
-
-                        // Botón Iniciar Sesión (full width)
                         _buildLoginButton(context),
-
                         const SizedBox(height: 29),
-
-                        // Microcopy ayuda
                         _buildHelpRow(context),
-
                         const Spacer(),
-
-                        // Footer siempre abajo
                         _buildFooter(context),
                       ],
                     ),
@@ -68,14 +50,12 @@ class MyAdminLoginView extends StatelessWidget {
     );
   }
 
-  // --- Top right back / small badge (igual que antes, pero usando colorScheme) ---
   Widget _buildTopRightBack(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
     return Align(
       alignment: Alignment.topRight,
       child: GestureDetector(
-        // deja onTap null por ahora (placeholder). Si quieres navegar, reemplaza por: () => Navigator.of(context).maybePop()
-        onTap: () => Get.toNamed(Routes.myTaskLookUpView),
+        onTap: () => Get.offAllNamed(Routes.myTaskLookUpView),
         child: Container(
           padding: const EdgeInsets.all(11.5),
           decoration: BoxDecoration(
@@ -92,20 +72,16 @@ class MyAdminLoginView extends StatelessWidget {
           child: Icon(
             Icons.arrow_back_ios_new,
             size: 18,
-            color: colorScheme.primary, // usa primary del tema
+            color: colorScheme.primary,
           ),
         ),
       ),
     );
   }
 
-  // --- Título y avatar con anillo degradado + badge decorativo ---
   Widget _buildTitleAndAvatar(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
-
-    // Tamaños similares a tu versión original
     const double avatarSize = 88.0;
-    const double ringPadding = 6.0;
     const double smallBadgeSize = 22.0;
 
     return Column(
@@ -115,30 +91,24 @@ class MyAdminLoginView extends StatelessWidget {
           style: TextStyle(
             fontSize: 28,
             fontWeight: FontWeight.w700,
-            color: colorScheme.primary, // usa primary del tema
+            color: colorScheme.primary,
           ),
           textAlign: TextAlign.center,
         ),
-
         const SizedBox(height: 14),
-
         const Text(
           'Accede con tus credenciales de administrador.',
           style: TextStyle(color: Colors.black87, fontSize: 13.5),
           textAlign: TextAlign.center,
         ),
-
         const SizedBox(height: 22),
-
-        // Avatar con anillo y pequeño badge decorativo
         Container(
-          padding: const EdgeInsets.all(ringPadding),
+          padding: const EdgeInsets.all(6),
           decoration: BoxDecoration(
             shape: BoxShape.circle,
             gradient: LinearGradient(
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
-              // se juegan opacidades del primary para el anillo (efecto sutil)
               colors: [
                 colorScheme.primary.withOpacity(0.5),
                 colorScheme.primary.withOpacity(0.05),
@@ -155,7 +125,6 @@ class MyAdminLoginView extends StatelessWidget {
           child: Stack(
             alignment: Alignment.center,
             children: [
-              // círculo interior blanco con icono de shield rojo (error del tema si prefieres)
               Container(
                 width: avatarSize,
                 height: avatarSize,
@@ -170,15 +139,11 @@ class MyAdminLoginView extends StatelessWidget {
                     child: Icon(
                       Icons.shield,
                       size: 36,
-                      color: Theme.of(
-                        context,
-                      ).colorScheme.error, // rojo del tema (antes: 0xFFB71C1C)
+                      color: colorScheme.error,
                     ),
                   ),
                 ),
               ),
-
-              // pequeño badge decorativo abajo-derecha (usa primary como antes)
               Positioned(
                 right: 2,
                 bottom: 6,
@@ -209,28 +174,46 @@ class MyAdminLoginView extends StatelessWidget {
     );
   }
 
-  // --- Grupo de campos: usuario y contraseña (reutiliza un helper) ---
   Widget _buildFieldsGroup(BuildContext context) {
     return Column(
       children: [
         _buildTextField(
-          hint: 'Usuario',
+          controller: controller.emailController,
+          hint: 'Usuario (Email)',
           prefix: const Icon(Icons.person_outline),
+          onChanged: (_) => controller.clearError(),
         ),
         const SizedBox(height: 16),
         _buildTextField(
+          controller: controller.passwordController,
           hint: 'Contraseña',
           prefix: const Icon(Icons.lock_outline),
           obscure: true,
+          onChanged: (_) => controller.clearError(),
         ),
+        Obx(() => controller.errorMessage.isNotEmpty
+            ? Padding(
+                padding: const EdgeInsets.only(top: 16),
+                child: Text(
+                  controller.errorMessage.value,
+                  style: TextStyle(
+                    color: Theme.of(context).colorScheme.error,
+                    fontSize: 14,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+              )
+            : const SizedBox.shrink()),
       ],
     );
   }
 
   Widget _buildTextField({
+    required TextEditingController controller,
     required String hint,
     Widget? prefix,
     bool obscure = false,
+    ValueChanged<String>? onChanged,
   }) {
     return Material(
       elevation: 3,
@@ -242,7 +225,9 @@ class MyAdminLoginView extends StatelessWidget {
           borderRadius: BorderRadius.circular(14),
         ),
         child: TextField(
+          controller: controller,
           obscureText: obscure,
+          onChanged: onChanged,
           decoration: InputDecoration(
             hintText: hint,
             prefixIcon: prefix,
@@ -253,45 +238,57 @@ class MyAdminLoginView extends StatelessWidget {
     );
   }
 
-  // --- Botón Iniciar Sesión (full width) ---
   Widget _buildLoginButton(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
     final Color start = colorScheme.primary;
     final Color end = colorScheme.primary.withOpacity(0.85);
 
-    return GestureDetector(
-      onTap: () {
-        Get.offAllNamed(Routes.myAdminPanelView);
-      },
-      child: Container(
-        height: 64,
-        width: double.infinity,
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(999),
-          gradient: LinearGradient(colors: [start, end]),
-          boxShadow: [
-            BoxShadow(
-              color: start.withOpacity(0.22),
-              blurRadius: 18,
-              offset: const Offset(0, 10),
-            ),
-          ],
-        ),
-        child: const Center(
-          child: Text(
-            'Iniciar Sesión',
-            style: TextStyle(
-              color: Colors.white,
-              fontWeight: FontWeight.w700,
-              fontSize: 16.5,
+    return Obx(() {
+      if (controller.isLoading.value) {
+        return Container(
+          height: 64,
+          width: double.infinity,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(999),
+            color: Colors.grey.shade300,
+          ),
+          child: const Center(
+            child: CircularProgressIndicator(),
+          ),
+        );
+      }
+
+      return GestureDetector(
+        onTap: () => controller.login(),
+        child: Container(
+          height: 64,
+          width: double.infinity,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(999),
+            gradient: LinearGradient(colors: [start, end]),
+            boxShadow: [
+              BoxShadow(
+                color: start.withOpacity(0.22),
+                blurRadius: 18,
+                offset: const Offset(0, 10),
+              ),
+            ],
+          ),
+          child: const Center(
+            child: Text(
+              'Iniciar Sesión',
+              style: TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.w700,
+                fontSize: 16.5,
+              ),
             ),
           ),
         ),
-      ),
-    );
+      );
+    });
   }
 
-  // --- Microcopy / ayuda ---
   Widget _buildHelpRow(BuildContext context) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
@@ -306,7 +303,6 @@ class MyAdminLoginView extends StatelessWidget {
     );
   }
 
-  // --- Footer ---
   Widget _buildFooter(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 6),

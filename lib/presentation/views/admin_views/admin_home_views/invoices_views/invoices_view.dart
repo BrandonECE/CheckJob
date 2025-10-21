@@ -1,17 +1,15 @@
 import 'package:check_job/config/routes.dart';
+import 'package:check_job/presentation/controllers/invoice/invoice_controller.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:get/get_core/src/get_main.dart';
+
+import '../../../../../domain/entities/enities.dart';
 
 class MyInvoicesView extends StatelessWidget {
-  const MyInvoicesView({super.key});
+  MyInvoicesView({super.key});
 
-  final List<Map<String, dynamic>> invoices = const [
-    {'id': 'FAC-001', 'client': 'Empresa ABC', 'amount': '\$1,200.00', 'status': 'Pagada', 'date': '15 Nov 2023'},
-    {'id': 'FAC-002', 'client': 'Compañía XYZ', 'amount': '\$850.50', 'status': 'Pendiente', 'date': '18 Nov 2023'},
-    {'id': 'FAC-003', 'client': 'Negocio 123', 'amount': '\$2,340.75', 'status': 'Vencida', 'date': '10 Nov 2023'},
-    {'id': 'FAC-004', 'client': 'Cliente Nuevo', 'amount': '\$450.00', 'status': 'Pagada', 'date': '20 Nov 2023'},
-  ];
+  final InvoiceController controller = Get.find<InvoiceController>();
 
   @override
   Widget build(BuildContext context) {
@@ -66,14 +64,17 @@ class MyInvoicesView extends StatelessWidget {
   }
 
   Widget _buildInvoiceStats(BuildContext context) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceAround,
-      children: [
-        _statItem(context, 'Total', '\$4,841.25', Icons.attach_money),
-        _statItem(context, 'Pagadas', '\$1,650.00', Icons.check_circle),
-        _statItem(context, 'Pendientes', '\$850.50', Icons.pending),
-      ],
-    );
+    return Obx(() {
+      final stats = controller.getInvoiceStats();
+      return Row(
+        mainAxisAlignment: MainAxisAlignment.spaceAround,
+        children: [
+          _statItem(context, 'Total', '\$${stats['total']!.toStringAsFixed(2)}', Icons.attach_money),
+          _statItem(context, 'Pagadas', '\$${stats['paid']!.toStringAsFixed(2)}', Icons.check_circle),
+          _statItem(context, 'Pendientes', '\$${stats['pending']!.toStringAsFixed(2)}', Icons.pending),
+        ],
+      );
+    });
   }
 
   Widget _statItem(BuildContext context, String title, String value, IconData icon) {
@@ -81,30 +82,62 @@ class MyInvoicesView extends StatelessWidget {
       children: [
         Icon(icon, size: 24, color: Theme.of(context).colorScheme.primary),
         const SizedBox(height: 8),
-        Text(value, style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-        Text(title, style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
+        AnimatedSwitcher(
+          duration: const Duration(milliseconds: 120),
+          transitionBuilder: (child, anim) => FadeTransition(opacity: anim, child: child),
+          child: Text(
+            key: ValueKey(value),
+            value,
+            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+          ),
+        ),
+        Text(
+          title,
+          style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+        ),
       ],
     );
   }
 
   Widget _buildInvoicesList(BuildContext context) {
-    return Expanded(
-      child: ListView.builder(
-        itemCount: invoices.length,
-        itemBuilder: (context, index) {
-          return GestureDetector(
-            onTap: () => Get.toNamed(Routes.myInvoicePortalView),
-            child: _invoiceCard(context, invoices[index]));
-        },
-      ),
-    );
+    return Obx(() {
+      if (controller.isLoading.value) {
+        return const Expanded(
+          child: Center(child: CircularProgressIndicator()),
+        );
+      }
+
+      final invoices = controller.invoices;
+
+      if (invoices.isEmpty) {
+        return const Expanded(
+          child: Center(
+            child: Text(
+              'No hay facturas registradas',
+              style: TextStyle(color: Colors.grey, fontSize: 16),
+            ),
+          ),
+        );
+      }
+
+      return Expanded(
+        child: ListView.builder(
+          itemCount: invoices.length,
+          itemBuilder: (context, index) {
+            return GestureDetector(
+              onTap: () async {
+                await controller.selectInvoice(invoices[index].invoicesID);
+                Get.toNamed(Routes.myInvoicePortalView);
+              },
+              child: _invoiceCard(context, invoices[index]),
+            );
+          },
+        ),
+      );
+    });
   }
 
-  Widget _invoiceCard(BuildContext context, Map<String, dynamic> invoice) {
-    Color statusColor = Colors.green;
-    if (invoice['status'] == 'Pendiente') statusColor = Colors.orange;
-    if (invoice['status'] == 'Vencida') statusColor = Colors.red;
-
+  Widget _invoiceCard(BuildContext context, InvoiceEntity invoice) {
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(16),
@@ -130,27 +163,50 @@ class MyInvoicesView extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(invoice['id'], style: TextStyle(fontWeight: FontWeight.w600)),
-                Text(invoice['client'], style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
-                Text(invoice['date'], style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
-                Text(invoice['amount'], style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold)),
+                Text(invoice.invoicesID, style: TextStyle(fontWeight: FontWeight.w600)),
+                Text("${invoice.taskID} - ${invoice.clientName}", style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
+                Text(_formatDate(invoice.dueDate), style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
+                Text('\$${invoice.amount.toStringAsFixed(2)}', style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold)),
               ],
             ),
           ),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-            decoration: BoxDecoration(
-              color: statusColor.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(20),
-            ),
-            child: Text(
-              invoice['status'],
-              style: TextStyle(color: statusColor, fontSize: 12, fontWeight: FontWeight.w600),
+          AnimatedSwitcher(
+            duration: const Duration(milliseconds: 120),
+            transitionBuilder: (child, anim) => FadeTransition(opacity: anim, child: child),
+            layoutBuilder: (currentChild, previousChildren) {
+              return Stack(
+                alignment: Alignment.centerRight,
+                children: <Widget>[
+                  ...previousChildren,
+                  if (currentChild != null) currentChild,
+                ],
+              );
+            },
+            child: Container(
+              key: ValueKey('${invoice.invoicesID}_${invoice.status}'),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              decoration: BoxDecoration(
+                color: invoice.statusColor.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: Text(
+                invoice.statusText,
+                style: TextStyle(
+                  color: invoice.statusColor,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
             ),
           ),
         ],
       ),
     );
+  }
+
+  String _formatDate(Timestamp timestamp) {
+    final date = timestamp.toDate();
+    return '${date.day}/${date.month}/${date.year}';
   }
 
   static Color _blendWithWhite(BuildContext context, double amount) {

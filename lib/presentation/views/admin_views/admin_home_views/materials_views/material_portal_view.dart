@@ -1,9 +1,43 @@
+// lib/presentation/views/my_material_portal_view.dart
+import 'package:check_job/presentation/controllers/material/material_controller.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:get/get_core/src/get_main.dart';
 
-class MyMaterialPortalView extends StatelessWidget {
+class MyMaterialPortalView extends StatefulWidget {
   const MyMaterialPortalView({super.key});
+
+  @override
+  State<MyMaterialPortalView> createState() => _MyMaterialPortalViewState();
+}
+
+class _MyMaterialPortalViewState extends State<MyMaterialPortalView> {
+  final MaterialController controller = Get.find<MaterialController>();
+  late TextEditingController currentStockController;
+  late TextEditingController minStockController;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadMaterialData();
+  }
+
+  void _loadMaterialData() {
+    final material = controller.selectedMaterial.value;
+    currentStockController = TextEditingController();
+    minStockController = TextEditingController();
+    
+    if (material != null) {
+      currentStockController.text = material.currentStock.toString();
+      minStockController.text = material.minStock.toString();
+    }
+  }
+
+  @override
+  void dispose() {
+    currentStockController.dispose();
+    minStockController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -38,7 +72,9 @@ class MyMaterialPortalView extends StatelessWidget {
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
         GestureDetector(
-          onTap: () => Get.back(),
+          onTap: () {
+            Get.back();
+          },
           child: Container(
             padding: const EdgeInsets.all(11.5),
             decoration: BoxDecoration(
@@ -75,39 +111,68 @@ class MyMaterialPortalView extends StatelessWidget {
   Widget _buildMaterialInfo(BuildContext context) {
     final color = Theme.of(context).colorScheme.primary;
     
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 8,
-            offset: const Offset(0, 4),
+    return Obx(() {
+      final material = controller.selectedMaterial.value;
+      if (material == null) {
+        return Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(12),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.05),
+                blurRadius: 8,
+                offset: const Offset(0, 4),
+              ),
+            ],
           ),
-        ],
-      ),
-      child: Row(
-        children: [
-          CircleAvatar(
-            backgroundColor: color.withOpacity(0.1),
-            child: Icon(Icons.inventory_2, color: color),
-          ),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('Aceite Motor', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 16)),
-                Text('Unidad: Lts', style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
-                Text('Estado: Normal', style: TextStyle(fontSize: 12, color: Colors.green)),
-              ],
+          child: Center(
+            child: Text(
+              'Material no encontrado',
+              style: TextStyle(
+                color: Colors.grey.shade600,
+                fontSize: 16,
+              ),
             ),
           ),
-        ],
-      ),
-    );
+        );
+      }
+
+      return Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(12),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.05),
+              blurRadius: 8,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Row(
+          children: [
+            CircleAvatar(
+              backgroundColor: color.withOpacity(0.1),
+              child: Icon(Icons.inventory_2, color: color),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(material.name, style: TextStyle(fontWeight: FontWeight.w600, fontSize: 16)),
+                  Text('Unidad: ${material.unit}', style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
+                  Text('Estado: ${material.status}', style: TextStyle(fontSize: 12, color: material.statusColor)),
+                ],
+              ),
+            ),
+          ],
+        ),
+      );
+    });
   }
 
   Widget _buildEditForm(BuildContext context) {
@@ -127,14 +192,14 @@ class MyMaterialPortalView extends StatelessWidget {
       child: Column(
         children: [
           _buildNumberField(
+            controller: currentStockController,
             label: 'Cantidad Actual',
-            value: '42',
             icon: Icons.numbers,
           ),
           const SizedBox(height: 16),
           _buildNumberField(
+            controller: minStockController,
             label: 'Stock Mínimo',
-            value: '10',
             icon: Icons.warning,
           ),
           const SizedBox(height: 20),
@@ -145,8 +210,8 @@ class MyMaterialPortalView extends StatelessWidget {
   }
 
   Widget _buildNumberField({
+    required TextEditingController controller,
     required String label,
-    required String value,
     required IconData icon,
   }) {
     return Column(
@@ -174,8 +239,8 @@ class MyMaterialPortalView extends StatelessWidget {
               const SizedBox(width: 8),
               Expanded(
                 child: TextField(
+                  controller: controller,
                   keyboardType: TextInputType.number,
-                  controller: TextEditingController(text: value),
                   decoration: const InputDecoration(
                     border: InputBorder.none,
                     isDense: true,
@@ -192,79 +257,188 @@ class MyMaterialPortalView extends StatelessWidget {
   Widget _buildSaveButton(BuildContext context) {
     final color = Theme.of(context).colorScheme.primary;
     
-    return SizedBox(
-      width: double.infinity,
-      child: ElevatedButton.icon(
-        onPressed: () {
-          Get.snackbar(
-            'Guardado',
-            'Los cambios se han guardado correctamente',
-            snackPosition: SnackPosition.BOTTOM,
-            backgroundColor: Colors.green,
-            colorText: Colors.white,
-          );
-        },
-        style: ElevatedButton.styleFrom(
-          backgroundColor: color,
-          padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
+    return Obx(() {
+      if (controller.isLoading.value) {
+        return SizedBox(
+          width: double.infinity,
+          child: ElevatedButton(
+            onPressed: () {},
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.grey.shade300,
+              padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
+            child: const CircularProgressIndicator(),
+          ),
+        );
+      }
+
+      return SizedBox(
+        width: double.infinity,
+        child: ElevatedButton.icon(
+          onPressed: _updateMaterial,
+          style: ElevatedButton.styleFrom(
+            backgroundColor: color,
+            padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+          ),
+          icon: const Icon(Icons.save, color: Colors.white, size: 20),
+          label: const Text(
+            'Guardar Cambios',
+            style: TextStyle(
+              color: Colors.white,
+              fontWeight: FontWeight.w700,
+              fontSize: 16,
+            ),
           ),
         ),
-        icon: const Icon(Icons.save, color: Colors.white, size: 20),
-        label: const Text(
-          'Guardar Cambios',
-          style: TextStyle(
-            color: Colors.white,
-            fontWeight: FontWeight.w700,
-            fontSize: 16,
-          ),
-        ),
-      ),
-    );
+      );
+    });
   }
 
   Widget _buildDeleteButton(BuildContext context) {
-    return SizedBox(
-      width: double.infinity,
-      child: ElevatedButton.icon(
-        onPressed: () {
-          Get.defaultDialog(
-            title: 'Eliminar Material',
-            middleText: '¿Estás seguro de que deseas eliminar este material? Esta acción no se puede deshacer.',
-            textConfirm: 'Eliminar',
-            textCancel: 'Cancelar',
-            confirmTextColor: Colors.white,
-            onConfirm: () {
-              Get.back();
-              Get.snackbar(
-                'Material Eliminado',
-                'El material ha sido eliminado correctamente',
-                snackPosition: SnackPosition.BOTTOM,
-                backgroundColor: Colors.red,
-                colorText: Colors.white,
-              );
-            },
-          );
-        },
+    return Obx(() {
+      if (controller.isLoading.value) {
+        return SizedBox(
+        width: double.infinity,
+        child: ElevatedButton.icon(
+          onPressed: (){},
+          style: ElevatedButton.styleFrom(
+            backgroundColor: Colors.red,
+            padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+          ),
+          label: SizedBox(
+              width: 30,
+              height: 30,
+              child: CircularProgressIndicator(color: Colors.grey.shade300, )),
+        ),
+      );
+      }
+
+      return SizedBox(
+        width: double.infinity,
+        child: ElevatedButton.icon(
+          onPressed: _deleteMaterial,
+          style: ElevatedButton.styleFrom(
+            backgroundColor: Colors.red,
+            padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+          ),
+          icon: const Icon(Icons.delete, color: Colors.white, size: 20),
+          label: const Text(
+            'Eliminar Material',
+            style: TextStyle(
+              color: Colors.white,
+              fontWeight: FontWeight.w700,
+              fontSize: 16,
+            ),
+          ),
+        ),
+      );
+    });
+  }
+
+  void _updateMaterial() {
+    final material = controller.selectedMaterial.value;
+    if (material == null) {
+      Get.snackbar(
+        'Error',
+        'No se encontró el material',
+        snackPosition: SnackPosition.BOTTOM,
+        backgroundColor: Colors.red,
+        colorText: Colors.white,
+      );
+      return;
+    }
+
+    final currentStock = int.tryParse(currentStockController.text) ?? 0;
+    final minStock = int.tryParse(minStockController.text) ?? 0;
+
+    if (currentStock < 0) {
+      Get.snackbar(
+        'Error',
+        'La cantidad actual no puede ser negativa',
+        snackPosition: SnackPosition.BOTTOM,
+        backgroundColor: Colors.red,
+        colorText: Colors.white,
+      );
+      return;
+    }
+
+    if (minStock < 0) {
+      Get.snackbar(
+        'Error',
+        'El stock mínimo no puede ser negativo',
+        snackPosition: SnackPosition.BOTTOM,
+        backgroundColor: Colors.red,
+        colorText: Colors.white,
+      );
+      return;
+    }
+
+    controller.updateMaterial(
+      materialID: material.materialID,
+      currentStock: currentStock,
+      minStock: minStock,
+    );
+  }
+
+  void _deleteMaterial() {
+    final material = controller.selectedMaterial.value;
+    if (material == null) {
+      Get.snackbar(
+        'Error',
+        'No se encontró el material',
+        snackPosition: SnackPosition.BOTTOM,
+        backgroundColor: Colors.red,
+        colorText: Colors.white,
+      );
+      return;
+    }
+
+   Get.defaultDialog(
+    backgroundColor: Colors.white,
+      titlePadding: const EdgeInsets.only(top: 30),
+      contentPadding: const EdgeInsets.only(top: 20, right: 30, bottom: 30, left: 30),
+      title: 'Eliminar Material',
+      middleText:
+          '¿Estás seguro de que deseas eliminar "${material.name}"? Esta acción no se puede deshacer.',
+      confirm: ElevatedButton(
         style: ElevatedButton.styleFrom(
-          backgroundColor: Colors.red,
-          padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
+          backgroundColor: Theme.of(context).colorScheme.primary,
+          foregroundColor: Colors.white,
+          padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 14), // 👈 más padding
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: BorderRadius.circular(10),
           ),
         ),
-        icon: const Icon(Icons.delete, color: Colors.white, size: 20),
-        label: const Text(
-          'Eliminar Material',
-          style: TextStyle(
-            color: Colors.white,
-            fontWeight: FontWeight.w700,
-            fontSize: 16,
+        onPressed: () {
+          controller.deleteMaterial(material.materialID, material.name);
+          Get.back(); // para cerrar el diálogo después
+        },
+        child: const Text('Eliminar'),
+      ),
+      cancel: TextButton(
+        style: TextButton.styleFrom(
+          padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 14), // 👈 más padding
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(10),
           ),
         ),
+        onPressed: () => Get.back(),
+        child: const Text('Cancelar'),
       ),
     );
+
   }
 
   static Color _blendWithWhite(BuildContext context, double amount) {
