@@ -28,6 +28,7 @@ class StatisticEntity {
 
   Map<String, dynamic> toFirestore() {
     return {
+      'statisticID': statisticID,
       'metric': metric,
       'value': value,
       'date': Timestamp.fromDate(date),

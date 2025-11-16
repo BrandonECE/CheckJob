@@ -1,7 +1,12 @@
 // lib/presentation/bindings/global_binding.dart
+import 'package:check_job/domain/repositories/daily_stats_generation_repository.dart';
+import 'package:check_job/domain/services/daily_stats_generation_service.dart';
 import 'package:check_job/infraestructure/repositories/auth_repository_impl.dart';
+import 'package:check_job/infraestructure/repositories/daily_stats_generation_repository_impl.dart';
 import 'package:check_job/infraestructure/services/auth_service_impl.dart';
+import 'package:check_job/infraestructure/services/daily_stats_generation_service_impl.dart';
 import 'package:check_job/presentation/controllers/connectivity/connectivity_controller.dart';
+import 'package:check_job/presentation/controllers/statistics/daily_stats_generation_controller.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:get/get.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -30,5 +35,10 @@ class GlobalBinding extends Bindings {
     // Controlador específico del login (también persistente)
     Get.put<AdminLoginController>( AdminLoginController(adminController: Get.find<AdminController>()), );
     Get.put<ConnectivityController>(ConnectivityController(), permanent: true);
+
+    Get.lazyPut<DailyStatsGenerationRepository>( () => DailyStatsGenerationRepositoryImpl(Get.find<FirebaseFirestore>()), );
+    Get.lazyPut<DailyStatsGenerationService>( () => DailyStatsGenerationServiceImpl( Get.find<DailyStatsGenerationRepository>(), Get.find<FirebaseFirestore>(), ), );
+// Controller permanente que siempre esté activo
+    Get.put<DailyStatsGenerationController>( DailyStatsGenerationController(Get.find<DailyStatsGenerationService>()), permanent: true, );
   }
 }

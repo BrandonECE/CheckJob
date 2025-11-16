@@ -266,7 +266,7 @@ class MyUserTaskDetailView extends StatelessWidget {
             true, // permite seleccionar / copiar si quieres
         minLines: 4,
         maxLines: null,
-        style: const TextStyle(fontSize: 15, color: Colors.black87),
+        style: TextStyle(fontSize: 15, color: Colors.grey.shade500),
         decoration: const InputDecoration(
           hintText: 'Sin comentarios',
           hintStyle: TextStyle(fontSize: 15, color: Colors.grey),

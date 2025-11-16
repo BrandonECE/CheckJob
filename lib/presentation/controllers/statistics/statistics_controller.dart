@@ -35,39 +35,50 @@ class StatisticController extends GetxController {
   }
 
   Future<void> loadDashboardStats() async {
-    isLoading.value = true;
+  isLoading.value = true;
+  
+  // limpiar para evitar stale UI
+  dashboardStats.clear();
+  previousDashboardStats.clear();
 
-    // limpiar para evitar stale UI
-    dashboardStats.clear();
-    previousDashboardStats.clear();
+  final currentRange = _rangeForFilter(selectedTimeFilter.value);
+  final prevRange = _previousRangeForFilter(selectedTimeFilter.value);
 
-    final currentRange = _rangeForFilter(selectedTimeFilter.value);
-    final prevRange = _previousRangeForFilter(selectedTimeFilter.value);
+  print('🕒 Rango actual: ${currentRange.start} - ${currentRange.end}');
+  print('🕒 Rango anterior: ${prevRange.start} - ${prevRange.end}');
 
-    try {
-      if (useStatisticsCollection.value) {
-        // obtener mapas agregados desde "statistics"
-        final Map<String, dynamic> current = await _statisticRepository.getStatsForPeriod(currentRange);
-        final Map<String, dynamic> previous = await _statisticRepository.getStatsForPeriod(prevRange);
+  try {
+    if (useStatisticsCollection.value) {
+      print('📊 Usando colección statistics...');
+      
+      // obtener mapas agregados desde "statistics"
+      final Map<String, dynamic> current = await _statisticRepository.getStatsForPeriod(currentRange);
+      final Map<String, dynamic> previous = await _statisticRepository.getStatsForPeriod(prevRange);
 
-        dashboardStats.value = _normalizeStatsMap(current);
-        previousDashboardStats.value = _normalizeStatsMap(previous);
-      } else {
-        // calcular en vivo desde tablas (service)
-        final Map<String, dynamic> current = await _statisticService.getDashboardStatsForRange(currentRange);
-        final Map<String, dynamic> previous = await _statisticService.getDashboardStatsForRange(prevRange);
+      print('📈 Estadísticas actuales: $current');
+      print('📉 Estadísticas anteriores: $previous');
 
-        dashboardStats.value = _normalizeStatsMap(current);
-        previousDashboardStats.value = _normalizeStatsMap(previous);
-      }
-    } catch (e) {
-      _showError('Error al cargar estadísticas: ${e.toString()}');
-      dashboardStats.value = _normalizeStatsMap(null);
-      previousDashboardStats.value = _normalizeStatsMap(null);
-    } finally {
-      isLoading.value = false;
+      dashboardStats.value = _normalizeStatsMap(current);
+      previousDashboardStats.value = _normalizeStatsMap(previous);
+    } else {
+      print('🔢 Calculando en vivo desde tablas...');
+      
+      // calcular en vivo desde tablas (service)
+      final Map<String, dynamic> current = await _statisticService.getDashboardStatsForRange(currentRange);
+      final Map<String, dynamic> previous = await _statisticService.getDashboardStatsForRange(prevRange);
+
+      dashboardStats.value = _normalizeStatsMap(current);
+      previousDashboardStats.value = _normalizeStatsMap(previous);
     }
+  } catch (e) {
+    print('❌ Error en loadDashboardStats: $e');
+    _showError('Error al cargar estadísticas: ${e.toString()}');
+    dashboardStats.value = _normalizeStatsMap(null);
+    previousDashboardStats.value = _normalizeStatsMap(null);
+  } finally {
+    isLoading.value = false;
   }
+}
 
   void setTimeFilter(String filter) {
     selectedTimeFilter.value = filter;

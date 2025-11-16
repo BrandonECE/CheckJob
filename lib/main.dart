@@ -1,6 +1,10 @@
+// import 'dart:math';
+// import 'package:check_job/domain/entities/statistics_entity.dart';
+// import 'package:cloud_firestore/cloud_firestore.dart';
+// import 'package:cloud_firestore/cloud_firestore.dart';
+
 import 'package:check_job/config/routes.dart';
 import 'package:check_job/presentation/bindings/global_binding.dart';
-// import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get_navigation/src/root/get_material_app.dart';
@@ -9,9 +13,11 @@ import 'package:toastification/toastification.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp();
+  //  _generateTestData();
   // await InitFirebaseClean().initializeDatabase();
   runApp(const MyApp());
 }
+
 
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
@@ -33,6 +39,198 @@ class MyApp extends StatelessWidget {
     );
   }
 }
+
+// void _generateTestData() async {
+//   final testGenerator = TestStatisticsGenerator(FirebaseFirestore.instance);
+
+//   // Verificar si ya existen datos de prueba
+//   await testGenerator.generateTestStatistics();
+// }
+
+// class TestStatisticsGenerator {
+//   final FirebaseFirestore _firestore;
+
+//   TestStatisticsGenerator(this._firestore);
+
+//   static const List<String> _metrics = [
+//     'total_tasks',
+//     'completed_tasks',
+//     'pending_tasks',
+//     'in_progress_tasks',
+//     'monthly_income',
+//     'active_clients',
+//     'completion_rate',
+//     'average_task_time',
+//     'client_satisfaction',
+//     'productivity_index',
+//     'productive_employees',
+//     'total_tasks_completed',
+//   ];
+
+//   Future<void> generateTestStatistics() async {
+//     try {
+//       print('🎯 Iniciando generación de estadísticas de prueba...');
+
+//       final now = DateTime.now();
+//       int documentsCreated = 0;
+
+//       // Generar 60 días de datos (desde hoy hacia atrás)
+//       for (int i = 0; i < 60; i++) {
+//         final date = now.subtract(Duration(days: i));
+
+//         for (final metric in _metrics) {
+//           final value = _generateRealisticValue(metric, date, i);
+//           await _saveTestStatistic(metric, value, date);
+//           documentsCreated++;
+//         }
+
+//         if (i % 10 == 0) {
+//           print('📊 Generados ${(i + 1) * _metrics.length} documentos...');
+//         }
+//       }
+
+//       print('✅ Generación completada: $documentsCreated documentos creados');
+//       print(
+//         '📅 Rango: ${now.subtract(const Duration(days: 59)).toString().split(' ')[0]} hasta ${now.toString().split(' ')[0]}',
+//       );
+//     } catch (e) {
+//       print('❌ Error generando estadísticas de prueba: $e');
+//       rethrow;
+//     }
+//   }
+
+//   double _generateRealisticValue(String metric, DateTime date, int daysAgo) {
+//     final random = _seededRandom(daysAgo);
+
+//     switch (metric) {
+//       case 'total_tasks':
+//         return (10 + random.nextDouble() * 40).roundToDouble(); // 10-50 tareas
+
+//       case 'completed_tasks':
+//         final total = _generateRealisticValue('total_tasks', date, daysAgo);
+//         return (total * (0.6 + random.nextDouble() * 0.3))
+//             .roundToDouble(); // 60-90% completadas
+
+//       case 'pending_tasks':
+//         final total = _generateRealisticValue('total_tasks', date, daysAgo);
+//         final completed = _generateRealisticValue(
+//           'completed_tasks',
+//           date,
+//           daysAgo,
+//         );
+//         return (total - completed).roundToDouble();
+
+//       case 'in_progress_tasks':
+//         final pending = _generateRealisticValue('pending_tasks', date, daysAgo);
+//         return (pending * (0.3 + random.nextDouble() * 0.4))
+//             .roundToDouble(); // 30-70% en progreso
+
+//       case 'monthly_income':
+//         // Más ingresos los fines de semana
+//         final isWeekend =
+//             date.weekday == DateTime.saturday ||
+//             date.weekday == DateTime.sunday;
+//         final base = 500 + random.nextDouble() * 1500;
+//         return (isWeekend ? base * 1.5 : base).roundToDouble();
+
+//       case 'active_clients':
+//         return (5 + random.nextDouble() * 20).roundToDouble(); // 5-25 clientes
+
+//       case 'completion_rate':
+//         return (70 + random.nextDouble() * 25).roundToDouble(); // 70-95%
+
+//       case 'average_task_time':
+//         return (1.5 + random.nextDouble() * 3.5).roundToDouble(); // 1.5-5 horas
+
+//       case 'client_satisfaction':
+//         // Tendencia de mejora con el tiempo (los días más recientes tienen mejor satisfacción)
+//         final trend = 1.0 - (daysAgo / 60.0) * 0.2; // Mejora del 20% en 60 días
+//         return (75 + random.nextDouble() * 20 * trend).roundToDouble();
+
+//       case 'productivity_index':
+//         // Relacionado con completion_rate y client_satisfaction
+//         final completion = _generateRealisticValue(
+//           'completion_rate',
+//           date,
+//           daysAgo,
+//         );
+//         final satisfaction = _generateRealisticValue(
+//           'client_satisfaction',
+//           date,
+//           daysAgo,
+//         );
+//         return ((completion * 0.6) + (satisfaction * 0.4)).roundToDouble();
+
+//       case 'productive_employees':
+//         return (2 + random.nextDouble() * 8).roundToDouble(); // 2-10 empleados
+
+//       case 'total_tasks_completed':
+//         return _generateRealisticValue('completed_tasks', date, daysAgo);
+
+//       default:
+//         return 0.0;
+//     }
+//   }
+
+//   Random _seededRandom(int seed) {
+//     return Random(seed * 1000 + DateTime.now().millisecondsSinceEpoch % 1000);
+//   }
+
+//   Future<void> _saveTestStatistic(
+//     String metric,
+//     double value,
+//     DateTime date,
+//   ) async {
+//     final statisticId =
+//         'stats_${date.year}_${date.month.toString().padLeft(2, '0')}_${date.day.toString().padLeft(2, '0')}_$metric';
+
+//     final statistic = StatisticEntity(
+//       statisticID: statisticId,
+//       metric: metric,
+//       value: value,
+//       date: date,
+//     );
+
+//     await _firestore
+//         .collection('statistics')
+//         .doc(statisticId)
+//         .set(statistic.toFirestore());
+//   }
+
+//   // Método para limpiar solo las estadísticas de prueba
+//   Future<void> clearTestStatistics() async {
+//     try {
+//       final snapshot = await _firestore
+//           .collection('statistics')
+//           .where('statisticID', isGreaterThanOrEqualTo: 'test_stats_')
+//           .get();
+
+//       final batch = _firestore.batch();
+//       for (final doc in snapshot.docs) {
+//         batch.delete(doc.reference);
+//       }
+
+//       await batch.commit();
+//       print(
+//         '🧹 Estadísticas de prueba eliminadas: ${snapshot.docs.length} documentos',
+//       );
+//     } catch (e) {
+//       print('❌ Error eliminando estadísticas de prueba: $e');
+//       rethrow;
+//     }
+//   }
+
+//   // Método para verificar cuántas estadísticas de prueba existen
+//   Future<int> getTestStatisticsCount() async {
+//     final snapshot = await _firestore
+//         .collection('statistics')
+//         .where('statisticID', isGreaterThanOrEqualTo: 'test_stats_')
+//         .get();
+
+//     return snapshot.docs.length;
+//   }
+// }
+
 // init_firebase_clean.dart
 
 // class InitFirebaseClean {

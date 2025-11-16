@@ -161,6 +161,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "0.7.11"
+  dispose_scope:
+    dependency: transitive
+    description:
+      name: dispose_scope
+      sha256: "48ec38ca2631c53c4f8fa96b294c801e55c335db5e3fb9f82cede150cfe5a2af"
+      url: "https://pub.dev"
+    source: hosted
+    version: "2.1.0"
   equatable:
     dependency: transitive
     description:
@@ -456,6 +464,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "0.2.2"
+  json_annotation:
+    dependency: transitive
+    description:
+      name: json_annotation
+      sha256: "1ce844379ca14835a50d2f019a3099f419082cfdd231cd86a142af94dd5c6bb1"
+      url: "https://pub.dev"
+    source: hosted
+    version: "4.9.0"
   leak_tracker:
     dependency: transitive
     description:
@@ -520,6 +536,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "2.0.0"
+  mocktail:
+    dependency: "direct main"
+    description:
+      name: mocktail
+      sha256: "890df3f9688106f25755f26b1c60589a92b3ab91a22b8b224947ad041bf172d8"
+      url: "https://pub.dev"
+    source: hosted
+    version: "1.0.4"
   nm:
     dependency: transitive
     description:
@@ -592,6 +616,30 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "2.3.0"
+  patrol:
+    dependency: "direct dev"
+    description:
+      name: patrol
+      sha256: "782988d05af24427296e48417c36c520598656e00ba73c401a19ecd65262ee0b"
+      url: "https://pub.dev"
+    source: hosted
+    version: "3.19.0"
+  patrol_finders:
+    dependency: transitive
+    description:
+      name: patrol_finders
+      sha256: "4a658d7d560de523f92deb3fa3326c78747ca0bf7e7f4b8788c012463138b628"
+      url: "https://pub.dev"
+    source: hosted
+    version: "2.9.0"
+  patrol_log:
+    dependency: transitive
+    description:
+      name: patrol_log
+      sha256: "9fed4143980df1e3bbcfa00d0b443c7d68f04f9132317b7698bbc37f8a5a58c5"
+      url: "https://pub.dev"
+    source: hosted
+    version: "0.5.0"
   pausable_timer:
     dependency: transitive
     description:
@@ -680,6 +728,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "6.1.0"
+  shelf:
+    dependency: transitive
+    description:
+      name: shelf
+      sha256: e7dd780a7ffb623c57850b33f43309312fc863fb6aa3d276a754bb299839ef12
+      url: "https://pub.dev"
+    source: hosted
+    version: "1.4.2"
   sky_engine:
     dependency: transitive
     description: flutter
@@ -847,4 +903,4 @@ packages:
     version: "6.6.1"
 sdks:
   dart: ">=3.8.1 <4.0.0"
-  flutter: ">=3.29.0"
+  flutter: ">=3.32.0"

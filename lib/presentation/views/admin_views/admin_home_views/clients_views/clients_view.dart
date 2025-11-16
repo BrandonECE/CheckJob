@@ -1,3 +1,4 @@
+// lib/presentation/views/my_clients_view.dart  (misma ruta que usas)
 import 'package:check_job/config/routes.dart';
 import 'package:check_job/domain/entities/enities.dart';
 import 'package:check_job/presentation/controllers/client/client_controller.dart';
@@ -5,12 +6,16 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
 class MyClientsView extends StatelessWidget {
-  MyClientsView({super.key});
+  // Nuevo: opcional, solo para pruebas. Si es null, usamos Get.find()
+  final dynamic externalController;
 
-  final ClientController controller = Get.find<ClientController>();
+  const MyClientsView({super.key, this.externalController});
 
   @override
   Widget build(BuildContext context) {
+    // si nos pasaron un controller en el constructor, lo usamos; si no, Get.find()
+    final ctrl = externalController ?? Get.find<ClientController>();
+
     return Scaffold(
       backgroundColor: _blendWithWhite(context, 0.03),
       body: SafeArea(
@@ -23,7 +28,7 @@ class MyClientsView extends StatelessWidget {
               const SizedBox(height: 20),
               _buildSearchField(context),
               const SizedBox(height: 20),
-              _buildClientsList(context),
+              _buildClientsList(context, ctrl),
             ],
           ),
         ),
@@ -117,7 +122,7 @@ class MyClientsView extends StatelessWidget {
     );
   }
 
-  Widget _buildClientsList(BuildContext context) {
+  Widget _buildClientsList(BuildContext context, dynamic controller) {
     return Obx(() {
       if (controller.isLoading.value) {
         return const Expanded(
@@ -125,7 +130,7 @@ class MyClientsView extends StatelessWidget {
         );
       }
 
-      final clients = controller.clients;
+      final clients = controller.clients as List<ClientEntity>;
 
       if (clients.isEmpty) {
         return const Expanded(
@@ -157,8 +162,9 @@ class MyClientsView extends StatelessWidget {
 
   Widget _clientCard(BuildContext context, ClientEntity client) {
     final isActive = client.isActive ?? false;
-    
+
     return Container(
+      key: Key('client-card-${client.clientID}'), // añadí key útil para tests
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -202,10 +208,8 @@ class MyClientsView extends StatelessWidget {
                   child: Text(
                     client.email,
                     style: TextStyle(
-                      fontSize: 12,
-                      color: Colors.grey.shade600
-                      ,overflow: TextOverflow.ellipsis
-                    ),
+                        fontSize: 12,
+                        color: Colors.grey.shade600, overflow: TextOverflow.ellipsis),
                   ),
                 ),
                 Text(
@@ -215,7 +219,6 @@ class MyClientsView extends StatelessWidget {
                     color: Colors.grey.shade600,
                   ),
                 ),
-             
               ],
             ),
           ),

@@ -36,6 +36,7 @@ class UserTaskController extends GetxController {
 
       final task = await _taskRepository.getTaskById(taskId);
 
+
       if (task == null) {
         searchError.value = 'No se encontró ninguna tarea con el ID: $taskId';
         selectedTask.value = null;
@@ -73,7 +74,7 @@ class UserTaskController extends GetxController {
 
       bool wasItPaid = await billWasPaid(taskId);
 
-      if (!wasItPaid) {
+      if (wasItPaid == false) {
         throw Exception(
           'Solo se puede enviar feedback si has pagado tu factura',
         );

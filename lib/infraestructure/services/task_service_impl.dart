@@ -149,26 +149,124 @@ class TaskServiceImpl implements TaskService {
     }
   }
 
-
- @override
-  Stream<List<TaskEntity>> getTasks() {
-    try {
-      return _firestore
-          .collection('tasks')
-          .orderBy('createdAt', descending: true)
-          .snapshots()
-          .handleError((error) {
-            throw 'Error al obtener tareas: $error';
-          })
-          .map((snapshot) {
-            return snapshot.docs
-                .map((doc) => _mapDocumentToTaskEntity(doc))
-                .toList();
-          });
-    } catch (e) {
-      return Stream.error('Error al crear stream de tareas: $e');
-    }
+@override
+Stream<List<TaskEntity>> getTasks() {
+  try {
+    return _firestore
+        .collection('tasks')
+        .orderBy('createdAt', descending: true)
+        .snapshots()
+        .handleError((error) {
+          throw 'Error al obtener tareas: $error';
+        })
+        .asyncMap((snapshot) async {
+          // Usamos asyncMap para poder hacer operaciones async dentro del map
+          final tasks = <TaskEntity>[];
+          
+          for (final doc in snapshot.docs) {
+            try {
+              final task = await _mapDocumentToTaskEntityWithComments(doc);
+              tasks.add(task);
+            } catch (e) {
+              print('Error procesando tarea ${doc.id}: $e');
+              // En caso de error, aún así mapear la tarea sin comentarios
+              final basicTask = _mapDocumentToBasicTaskEntity(doc);
+              tasks.add(basicTask);
+            }
+          }
+          
+          return tasks;
+        });
+  } catch (e) {
+    return Stream.error('Error al crear stream de tareas: $e');
   }
+}
+
+Future<TaskEntity> _mapDocumentToTaskEntityWithComments(DocumentSnapshot doc) async {
+  final map = doc.data() as Map<String, dynamic>? ?? {};
+
+  // 1) Intentar leer el comentario más reciente desde la subcolección 'task_comments'
+  TaskCommentEntity? commentFromSub;
+  try {
+    final commentQuery = await doc.reference
+        .collection('task_comments')
+        .orderBy('createdAt', descending: true)
+        .limit(1)
+        .get(GetOptions(source: Source.server));
+
+    if (commentQuery.docs.isNotEmpty) {
+      final commentMap = Map<String, dynamic>.from(commentQuery.docs.first.data());
+      commentFromSub = TaskCommentEntity.fromMap(commentMap);
+    }
+  } catch (e) {
+    print('Error obteniendo comentarios para tarea ${doc.id}: $e');
+    commentFromSub = null;
+  }
+
+  // 2) Construir la lista de materiales
+  final materialsList = List<TaskMaterialUsedEntity>.from(
+    (map['materialsUsed'] ?? []).map(
+      (material) => TaskMaterialUsedEntity.fromMap(Map<String, dynamic>.from(material)),
+    ),
+  );
+
+  // 3) Construir clientFeedback (si existe)
+  final TaskClientFeedbackEntity? clientFeedback = map['clientFeedback'] != null
+      ? TaskClientFeedbackEntity.fromMap(Map<String, dynamic>.from(map['clientFeedback']))
+      : null;
+
+  // 4) Construir TaskEntity
+  final task = TaskEntity(
+    taskID: map['taskID'] ?? doc.id, // Usar doc.id como fallback
+    title: map['title'] ?? '',
+    description: map['description'] ?? '',
+    status: map['status'] ?? 'pending',
+    assignedEmployeeName: map['assignedEmployeeName'] ?? '',
+    clientName: map['clientName'] ?? '',
+    assignedEmployeeID: map['assignedEmployeeID'] ?? '',
+    clientID: map['clientID'] ?? '',
+    createdAt: map['createdAt'] ?? Timestamp.now(),
+    completedAt: map['completedAt'],
+    clientFeedback: clientFeedback,
+    materialsUsed: materialsList,
+    comment: commentFromSub,
+  );
+
+  return task;
+}
+
+// Método auxiliar para mapear solo los datos básicos (sin comentarios) en caso de error
+TaskEntity _mapDocumentToBasicTaskEntity(DocumentSnapshot doc) {
+  final map = doc.data() as Map<String, dynamic>? ?? {};
+
+  // Construir la lista de materiales
+  final materialsList = List<TaskMaterialUsedEntity>.from(
+    (map['materialsUsed'] ?? []).map(
+      (material) => TaskMaterialUsedEntity.fromMap(Map<String, dynamic>.from(material)),
+    ),
+  );
+
+  // Construir clientFeedback (si existe)
+  final TaskClientFeedbackEntity? clientFeedback = map['clientFeedback'] != null
+      ? TaskClientFeedbackEntity.fromMap(Map<String, dynamic>.from(map['clientFeedback']))
+      : null;
+
+  return TaskEntity(
+    taskID: map['taskID'] ?? doc.id,
+    title: map['title'] ?? '',
+    description: map['description'] ?? '',
+    status: map['status'] ?? 'pending',
+    assignedEmployeeName: map['assignedEmployeeName'] ?? '',
+    clientName: map['clientName'] ?? '',
+    assignedEmployeeID: map['assignedEmployeeID'] ?? '',
+    clientID: map['clientID'] ?? '',
+    createdAt: map['createdAt'] ?? Timestamp.now(),
+    completedAt: map['completedAt'],
+    clientFeedback: clientFeedback,
+    materialsUsed: materialsList,
+    comment: null, // Sin comentarios por el error
+  );
+}
 
   @override
   Future<List<TaskEntity>> getTasksOnce() async {

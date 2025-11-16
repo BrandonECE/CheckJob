@@ -857,101 +857,96 @@ class _MyReportsViewState extends State<MyReportsView> {
   }
 
   // ---------- Generate with loading ----------
-  Future<void> _generateReportWithLoading(
-    ReportType type,
-    DateTimeRangeEntity dateRange,
-  ) async {
-    Get.dialog(
-      WillPopScope(
-        onWillPop: () async => false,
-        child: Dialog(
-          backgroundColor: Colors.transparent,
-          elevation: 0,
-          child: Container(
-            padding: const EdgeInsets.all(24),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(16),
-            ),
-            child: Obx(() {
-              final p = controller.currentProgress.value;
-              final percent = (p * 100).toInt();
-              return Column(
-                mainAxisSize: MainAxisSize.min,
+Future<void> _generateReportWithLoading(
+  ReportType type,
+  DateTimeRangeEntity dateRange,
+) async {
+  // Diálogo con la misma estética pero usando approach nativo
+  showDialog(
+    context: context,
+    barrierDismissible: false,
+    builder: (context) => WillPopScope(
+      onWillPop: () async => false,
+      child: Dialog(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        child: Container(
+          padding: const EdgeInsets.all(24),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(16),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Contenedor del icono y spinner
+              Stack(
+                alignment: Alignment.center,
                 children: [
-                  Stack(
-                    alignment: Alignment.center,
-                    children: [
-                      SizedBox(
-                        width: 72,
-                        height: 72,
-                        child: CircularProgressIndicator(
-                          value: p > 0 ? p : null,
-                          strokeWidth: 4,
-                          valueColor: AlwaysStoppedAnimation<Color>(
-                            Theme.of(context).colorScheme.primary,
-                          ),
-                        ),
-                      ),
-                      Text(
-                        '$percent%',
-                        style: const TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 20),
-                  const Text(
-                    'Generando Reporte...',
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    'Por favor espera, esto puede tardar unos segundos',
-                    style: TextStyle(fontSize: 13, color: Colors.grey.shade600),
-                    textAlign: TextAlign.center,
-                  ),
-                  const SizedBox(height: 12),
-                  if (p >= 0.8)
-                    Text(
-                      'Procesando datos...',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: Colors.green.shade600,
-                        fontWeight: FontWeight.w500,
+                  // Spinner de fondo
+                  SizedBox(
+                    width: 72,
+                    height: 72,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 3,
+                      valueColor: AlwaysStoppedAnimation<Color>(
+                        Theme.of(context).colorScheme.primary,
                       ),
                     ),
+                  ),
+                  // Icono en el centro
+                  Icon(
+                    Icons.analytics_outlined,
+                    size: 32, // Tamaño proporcional al spinner
+                    color: Theme.of(context).colorScheme.primary,
+                  ),
                 ],
-              );
-            }),
+              ),
+              const SizedBox(height: 20),
+              const Text(
+                'Generando Reporte...',
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Por favor espera, esto puede tardar unos segundos',
+                style: TextStyle(fontSize: 13, color: Colors.grey.shade600),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 12),
+              Text(
+                'Procesando datos...',
+                style: TextStyle(
+                  fontSize: 12,
+                  color: Colors.green.shade600,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ],
           ),
         ),
       ),
-      barrierDismissible: false,
+    ),
+  );
+
+  try {
+    final ReportEntity generated = await controller.generateReport(
+      type: type,
+      dateRange: dateRange,
     );
-
-    ReportEntity? generated;
-    try {
-      generated = await controller.generateReport(
-        type: type,
-        dateRange: dateRange,
-      );
-      if (Get.isDialogOpen ?? false) Get.back();
-    } catch (e) {
-      if (Get.isDialogOpen ?? false) Get.back();
-      return;
-    }
-
-    try {
-      await controller.downloadReport(generated);
-    } catch (_) {
-      // handled in controller
-    } finally {
-      if (Get.isDialogOpen ?? false) Get.back();
-    }
-    }
+    
+    // Cerrar diálogo
+    Navigator.of(context).pop();
+    
+    // Descargar
+    await controller.downloadReport(generated);
+    
+  } catch (e) {
+    // Cerrar diálogo SIEMPRE
+    Navigator.of(context).pop();
+    // El error ya fue mostrado por el controller
+  }
+}
 
   // ---------- Popup actions ----------
   void _handleReportAction(String action, ReportEntity report) {

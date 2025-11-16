@@ -12,12 +12,7 @@ abstract class ReportService {
   /// [dateRange] : rango de fechas utilizado para filtrar los datos.
   /// [format]    : formato de salida (PDF/CSV).
   /// [additionalFilters] : filtros opcionales dependiendo del tipo.
-  Future<ReportEntity> generateReport({
-    required ReportType type,
-    required DateTimeRangeEntity dateRange,
-    required ReportFormat format,
-    Map<String, dynamic>? additionalFilters,
-  });
+  Future<ReportEntity> generateReport({ required ReportType type, required DateTimeRangeEntity dateRange, required ReportFormat format, Map<String, dynamic>? additionalFilters, });
 
   /// Si se desea mantener una copia local en el dispositivo (opcional).
   Future<void> saveReportLocally(ReportEntity report, Uint8List data);
@@ -40,26 +35,11 @@ abstract class ReportService {
 
   /// Métodos auxiliares para generación de reportes específicos (opcional,
   /// pueden ser implementados por el servicio concreto).
-  Future<Uint8List> generateTasksReport(
-    DateTimeRangeEntity dateRange,
-    ReportFormat format,
-  );
-  Future<Uint8List> generateBillingReport(
-    DateTimeRangeEntity dateRange,
-    ReportFormat format,
-  );
-  Future<Uint8List> generateClientsReport(
-    DateTimeRangeEntity dateRange,
-    ReportFormat format,
-  );
-  Future<Uint8List> generateInventoryReport(
-    DateTimeRangeEntity dateRange,
-    ReportFormat format,
-  );
-  Future<Uint8List> generateEmployeesReport(
-    DateTimeRangeEntity dateRange,
-    ReportFormat format,
-  );
+  Future<Uint8List> generateTasksReport( DateTimeRangeEntity dateRange, ReportFormat format, );
+  Future<Uint8List> generateBillingReport( DateTimeRangeEntity dateRange, ReportFormat format, );
+  Future<Uint8List> generateClientsReport( DateTimeRangeEntity dateRange, ReportFormat format, );
+  Future<Uint8List> generateInventoryReport( DateTimeRangeEntity dateRange, ReportFormat format, );
+  Future<Uint8List> generateEmployeesReport( DateTimeRangeEntity dateRange, ReportFormat format, );
 
   /// Utilitarios de rangos y formato recomendado
   ReportFormat getRecommendedFormatForType(ReportType type);

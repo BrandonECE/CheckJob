@@ -87,6 +87,7 @@ class MyAdminPanelView extends StatelessWidget {
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           Text(
+            key: Key('admin_panel'),
             'Pn. Control',
             style: TextStyle(
               fontSize: 24,
